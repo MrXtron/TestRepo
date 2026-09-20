@@ -1,4 +1,4 @@
-name: Build
+name: Build and Output Plugins
 
 concurrency:
   group: "build"
@@ -146,9 +146,24 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/src
           touch local.properties
-          chmod +x gradlew
-          ./gradlew makePluginsJson --refresh-dependencies
           mkdir -p $GITHUB_WORKSPACE/builds
+          
+          # Wrapper JAR error se bachne ke liye direct gradle chalega agar ./gradlew fail hua to
+          if [ -f "./gradlew" ] && [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            chmod +x ./gradlew
+            ./gradlew makePluginsJson --refresh-dependencies
+          else
+            echo "⚠️ Wrapper missing, using global system gradle..."
+            gradle makePluginsJson --refresh-dependencies
+          fi
+          
           cp **/build/*.cs3 $GITHUB_WORKSPACE/builds/ 2>/dev/null || true
           cp **/build/*.jar $GITHUB_WORKSPACE/builds/ 2>/dev/null || true
           find . -name "plugins.json" -exec cp {} $GITHUB_WORKSPACE/builds/ \; || true
+
+      - name: Push Binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestRepo
+          path: ${{ github.workspace }}/builds/
+          retention-days: 3
