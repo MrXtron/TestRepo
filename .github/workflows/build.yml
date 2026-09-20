@@ -146,9 +146,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/src
           touch local.properties
-          mkdir -p $GITHUB_WORKSPACE/builds
           
-          # Wrapper JAR error se bachne ke liye direct gradle chalega agar ./gradlew fail hua to
+          # Root direct builds targeting workspace level folder directly
+          mkdir -p ../builds
+          
           if [ -f "./gradlew" ] && [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
             chmod +x ./gradlew
             ./gradlew makePluginsJson --refresh-dependencies
@@ -157,13 +158,13 @@ jobs:
             gradle makePluginsJson --refresh-dependencies
           fi
           
-          cp **/build/*.cs3 $GITHUB_WORKSPACE/builds/ 2>/dev/null || true
-          cp **/build/*.jar $GITHUB_WORKSPACE/builds/ 2>/dev/null || true
-          find . -name "plugins.json" -exec cp {} $GITHUB_WORKSPACE/builds/ \; || true
+          cp **/build/*.cs3 ../builds/ 2>/dev/null || true
+          cp **/build/*.jar ../builds/ 2>/dev/null || true
+          find . -name "plugins.json" -exec cp {} ../builds/ \; || true
 
       - name: Push Binaries
         uses: actions/upload-artifact@v4
         with:
           name: TestRepo
-          path: ${{ github.workspace }}/builds/
+          path: builds/
           retention-days: 3
