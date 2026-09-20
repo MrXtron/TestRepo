@@ -4,7 +4,6 @@
     "description": "CloudStream Extension for seamless streaming.",
     "manifestVersion": 1,
     "pluginLists": [
-      "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/builds/plugins.json",
-      "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/builds/ExtPlugins.json"
+      "https://raw.githubusercontent.com/MrXtron/TestRepo/refs/heads/builds/plugins.json"
     ]
 }
