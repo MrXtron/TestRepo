@@ -1,4 +1,4 @@
-name: Build and Output Plugins
+name: Build
 
 concurrency:
   group: build
@@ -23,8 +23,8 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           path: src
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -156,41 +156,49 @@ jobs:
       - name: Build plugins
         working-directory: src
         run: |
+          set -e
+
           chmod +x ./gradlew
           ./gradlew makePluginsJson --refresh-dependencies
 
-      - name: Collect generated files
+      - name: Collect Cloudstream files
         run: |
           set -e
 
           rm -rf builds
           mkdir -p builds
 
-          echo "Searching for generated CS3 files..."
+          echo "Searching for CS3 files..."
           find src -type f -name "*.cs3" -print
-
-          echo "Searching for generated JAR files..."
-          find src -type f -name "*.jar" -print
 
           echo "Searching for plugins.json..."
           find src -type f -name "plugins.json" -print
 
-          find src -type f -name "*.cs3" -exec cp -f {} builds/ \;
-          find src -type f -name "*.jar" -exec cp -f {} builds/ \;
-          find src -type f -name "plugins.json" -exec cp -f {} builds/ \;
+          # Only .cs3 files will copy.
+          find src -type f -name "*.cs3" \
+            -exec cp -f {} builds/ \;
 
-          echo "Files copied to builds:"
-          find builds -type f -print
+          # Only plugins.json will copy
+          find src -type f -name "plugins.json" \
+            -exec cp -f {} builds/ \;
 
-          if [ -z "$(find builds -type f -print -quit)" ]; then
-            echo "ERROR: No generated files were found."
+          echo "Final files:"
+          find builds -maxdepth 1 -type f -printf "%f\n" | sort
+
+          if ! find builds -maxdepth 1 -type f -name "*.cs3" -print -quit | grep -q .; then
+            echo "ERROR: No .cs3 file found."
+            exit 1
+          fi
+
+          if [ ! -f builds/plugins.json ]; then
+            echo "ERROR: plugins.json not found."
             exit 1
           fi
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TestRepo
+          name: Cloudstream-Plugins
           path: builds/
           if-no-files-found: error
           retention-days: 3
@@ -216,19 +224,22 @@ jobs:
 
           cd ../build-branch
 
-          # Remove old generated files
+          # Delete old files of Builds branch
           find . -mindepth 1 -maxdepth 1 \
             ! -name ".git" \
             -exec rm -rf {} +
 
-          # Copy to builds branch
+          # Generate Files
           cp -R ../builds/. .
+
+          # Safety check: JAR files dont copy accidentally
+          find . -type f -name "*.jar" -delete
 
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes detected in builds branch."
+            echo "No changes to commit."
           else
-            git commit -m "Build Sucessfull !"
+            git commit -m "Build Sucessfull"
             git push origin builds
           fi
