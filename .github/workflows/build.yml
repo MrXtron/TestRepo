@@ -1,7 +1,7 @@
 name: Build and Output Plugins
 
 concurrency:
-  group: "build"
+  group: build
   cancel-in-progress: true
 
 on:
@@ -10,29 +10,33 @@ on:
       - master
       - main
     paths-ignore:
-      - '*.md'
+      - "*.md"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v7
+      - name: Checkout source
+        uses: actions/checkout@v4
         with:
-          path: "src"
+          fetch-depth: 0
+          path: src
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Access Secrets
+      - name: Create local.properties
+        working-directory: src
         env:
           TMDB_API: ${{ secrets.TMDB_API }}
           DUMP_API: ${{ secrets.DUMP_API }}
@@ -87,84 +91,144 @@ jobs:
           iStreamFlare: ${{ secrets.iStreamFlare }}
           iStreamFlareSecretKey: ${{ secrets.iStreamFlareSecretKey }}
           iStreamFlareSalt: ${{ secrets.iStreamFlareSalt }}
-        run: |
-          cd $GITHUB_WORKSPACE/src
-          echo TMDB_API=$TMDB_API >> local.properties
-          echo DUMP_API=$DUMP_API >> local.properties
-          echo DUMP_KEY=$DUMP_KEY >> local.properties
-          echo ANICHI_API=$ANICHI_API >> local.properties
-          echo ANICHI_SERVER=$ANICHI_SERVER >> local.properties
-          echo ANICHI_ENDPOINT=$ANICHI_ENDPOINT >> local.properties
-          echo ANICHI_APP=$ANICHI_APP >> local.properties
-          echo ZSHOW_API=$ZSHOW_API >> local.properties
-          echo SFMOVIES_API=$SFMOVIES_API >> local.properties
-          echo CINEMATV_API=$CINEMATV_API >> local.properties
-          echo GHOSTX_API=$GHOSTX_API >> local.properties
-          echo SUPERSTREAM_FIRST_API=$SUPERSTREAM_FIRST_API >> local.properties
-          echo SUPERSTREAM_SECOND_API=$SUPERSTREAM_SECOND_API >> local.properties
-          echo SUPERSTREAM_THIRD_API=$SUPERSTREAM_THIRD_API >> local.properties
-          echo SUPERSTREAM_FOURTH_API=$SUPERSTREAM_FOURTH_API >> local.properties
-          echo AsianDrama_API=$AsianDrama_API >> local.properties
-          echo FanCode_API=$FanCode_API >> local.properties
-          echo Whvx_API=$Whvx_API >> local.properties
-          echo Su_sports=$Su_sports >> local.properties
-          echo PirateIPTV=$PirateIPTV >> local.properties
-          echo SonyIPTV=$SonyIPTV >> local.properties
-          echo JapanIPTV=$JapanIPTV >> local.properties
-          echo CatflixAPI=$CatflixAPI >> local.properties
-          echo ConsumetAPI=$ConsumetAPI >> local.properties
-          echo FlixHQAPI=$FlixHQAPI >> local.properties
-          echo WhvxAPI=$WhvxAPI >> local.properties
-          echo WhvxT=$WhvxT >> local.properties
-          echo SharmaflixApi=$SharmaflixApi >> local.properties
-          echo SharmaflixApikey=$SharmaflixApikey >> local.properties
-          echo HianimeAPI=$HianimeAPI >> local.properties
-          echo Vidsrccc=$Vidsrccc >> local.properties
-          echo WASMAPI=$WASMAPI >> local.properties
-          echo KissKh=$KissKh >> local.properties
-          echo KisskhSub=$KisskhSub >> local.properties
-          echo StreamPlayAPI=$StreamPlayAPI >> local.properties
-          echo PROXYAPI=$PROXYAPI >> local.properties
-          echo KAISVA=$KAISVA >> local.properties
-          echo MAL_API=$MAL_API >> local.properties
-          echo MOVIEBOX_SECRET_KEY_DEFAULT=$MOVIEBOX_SECRET_KEY_DEFAULT >> local.properties
-          echo MOVIEBOX_SECRET_KEY_ALT=$MOVIEBOX_SECRET_KEY_ALT >> local.properties
-          echo SuperToken=$SuperToken >> local.properties
-          echo KAIDEC=$KAIDEC >> local.properties
-          echo KAIENC=$KAIENC >> local.properties
-          echo KAIMEG=$KAIMEG >> local.properties
-          echo NuvioStreams=$NuvioStreams >> local.properties
-          echo YFXDEC=$YFXDEC >> local.properties
-          echo YFXENC=$YFXENC >> local.properties
-          echo VideasyDEC=$VideasyDEC >> local.properties
-          echo NuvFeb=$NuvFeb >> local.properties
-          echo iStreamFlare=$iStreamFlare >> local.properties
-          echo iStreamFlareSecretKey=$iStreamFlareSecretKey >> local.properties
-          echo iStreamFlareSalt=$iStreamFlareSalt >> local.properties
 
-      - name: Build Plugins
         run: |
-          cd $GITHUB_WORKSPACE/src
-          touch local.properties
-          
-          # Root direct builds targeting workspace level folder directly
-          mkdir -p ../builds
-          
-          if [ -f "./gradlew" ] && [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            chmod +x ./gradlew
-            ./gradlew makePluginsJson --refresh-dependencies
-          else
-            echo "⚠️ Wrapper missing, using global system gradle..."
-            gradle makePluginsJson --refresh-dependencies
+          : > local.properties
+
+          add_property() {
+            printf '%s=%s\n' "$1" "$2" >> local.properties
+          }
+
+          add_property TMDB_API "$TMDB_API"
+          add_property DUMP_API "$DUMP_API"
+          add_property DUMP_KEY "$DUMP_KEY"
+          add_property ANICHI_API "$ANICHI_API"
+          add_property ANICHI_SERVER "$ANICHI_SERVER"
+          add_property ANICHI_ENDPOINT "$ANICHI_ENDPOINT"
+          add_property ANICHI_APP "$ANICHI_APP"
+          add_property ZSHOW_API "$ZSHOW_API"
+          add_property SFMOVIES_API "$SFMOVIES_API"
+          add_property CINEMATV_API "$CINEMATV_API"
+          add_property GHOSTX_API "$GHOSTX_API"
+          add_property SUPERSTREAM_FIRST_API "$SUPERSTREAM_FIRST_API"
+          add_property SUPERSTREAM_SECOND_API "$SUPERSTREAM_SECOND_API"
+          add_property SUPERSTREAM_THIRD_API "$SUPERSTREAM_THIRD_API"
+          add_property SUPERSTREAM_FOURTH_API "$SUPERSTREAM_FOURTH_API"
+          add_property AsianDrama_API "$AsianDrama_API"
+          add_property FanCode_API "$FanCode_API"
+          add_property Whvx_API "$Whvx_API"
+          add_property JapanIPTV "$JapanIPTV"
+          add_property SonyIPTV "$SonyIPTV"
+          add_property PirateIPTV "$PirateIPTV"
+          add_property Su_sports "$Su_sports"
+          add_property CatflixAPI "$CatflixAPI"
+          add_property ConsumetAPI "$ConsumetAPI"
+          add_property FlixHQAPI "$FlixHQAPI"
+          add_property WhvxAPI "$WhvxAPI"
+          add_property WhvxT "$WhvxT"
+          add_property SharmaflixApikey "$SharmaflixApikey"
+          add_property SharmaflixApi "$SharmaflixApi"
+          add_property Theyallsayflix "$Theyallsayflix"
+          add_property HianimeAPI "$HianimeAPI"
+          add_property Vidsrccc "$Vidsrccc"
+          add_property WASMAPI "$WASMAPI"
+          add_property KissKh "$KissKh"
+          add_property KisskhSub "$KisskhSub"
+          add_property StreamPlayAPI "$StreamPlayAPI"
+          add_property PROXYAPI "$PROXYAPI"
+          add_property KAISVA "$KAISVA"
+          add_property MAL_API "$MAL_API"
+          add_property MOVIEBOX_SECRET_KEY_ALT "$MOVIEBOX_SECRET_KEY_ALT"
+          add_property MOVIEBOX_SECRET_KEY_DEFAULT "$MOVIEBOX_SECRET_KEY_DEFAULT"
+          add_property SuperToken "$SuperToken"
+          add_property KAIDEC "$KAIDEC"
+          add_property KAIENC "$KAIENC"
+          add_property KAIMEG "$KAIMEG"
+          add_property NuvioStreams "$NuvioStreams"
+          add_property YFXENC "$YFXENC"
+          add_property YFXDEC "$YFXDEC"
+          add_property VideasyDEC "$VideasyDEC"
+          add_property NuvFeb "$NuvFeb"
+          add_property iStreamFlare "$iStreamFlare"
+          add_property iStreamFlareSecretKey "$iStreamFlareSecretKey"
+          add_property iStreamFlareSalt "$iStreamFlareSalt"
+
+      - name: Build plugins
+        working-directory: src
+        run: |
+          chmod +x ./gradlew
+          ./gradlew makePluginsJson --refresh-dependencies
+
+      - name: Collect generated files
+        run: |
+          set -e
+
+          rm -rf builds
+          mkdir -p builds
+
+          echo "Searching for generated CS3 files..."
+          find src -type f -name "*.cs3" -print
+
+          echo "Searching for generated JAR files..."
+          find src -type f -name "*.jar" -print
+
+          echo "Searching for plugins.json..."
+          find src -type f -name "plugins.json" -print
+
+          find src -type f -name "*.cs3" -exec cp -f {} builds/ \;
+          find src -type f -name "*.jar" -exec cp -f {} builds/ \;
+          find src -type f -name "plugins.json" -exec cp -f {} builds/ \;
+
+          echo "Files copied to builds:"
+          find builds -type f -print
+
+          if [ -z "$(find builds -type f -print -quit)" ]; then
+            echo "ERROR: No generated files were found."
+            exit 1
           fi
-          
-          cp **/build/*.cs3 ../builds/ 2>/dev/null || true
-          cp **/build/*.jar ../builds/ 2>/dev/null || true
-          find . -name "plugins.json" -exec cp {} ../builds/ \; || true
 
-      - name: Push Binaries
+      - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: TestRepo
           path: builds/
+          if-no-files-found: error
           retention-days: 3
+
+      - name: Push files to builds branch
+        working-directory: src
+        run: |
+          set -e
+
+          git config user.name "actions-user"
+          git config user.email "actions@github.com"
+
+          git fetch origin builds || true
+
+          if git show-ref --verify --quiet refs/remotes/origin/builds; then
+            git worktree add --force ../build-branch -B builds origin/builds
+          else
+            git worktree add --detach ../build-branch
+            cd ../build-branch
+            git checkout --orphan builds
+            git rm -rf . || true
+          fi
+
+          cd ../build-branch
+
+          # Remove old generated files
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name ".git" \
+            -exec rm -rf {} +
+
+          # Copy to builds branch
+          cp -R ../builds/. .
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes detected in builds branch."
+          else
+            git commit -m "Build Sucessfull !"
+            git push origin builds
+          fi
