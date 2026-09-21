@@ -266,7 +266,7 @@ class DesiSerialsProvider : MainAPI() {
                             if (base64Match != null) {
                                 val base64Code = base64Match.groupValues[1]
                                 val decodedStr = String(android.util.Base64.decode(base64Code, android.util.Base64.DEFAULT))
-                                val unpacked = getAndUnpack(decodedStr) ?: decodedStr
+                                val unpacked = getAndUnpack(decodedStr)
                                 val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
                                 val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
                                 m3u8Links.forEach { source ->
@@ -292,7 +292,7 @@ class DesiSerialsProvider : MainAPI() {
                         // Extract VkPrime/VkSpeed direct link
                         try {
                             val playerHtml = app.get(fullNestedUrl, headers = mapOf("Referer" to url)).text
-                            val unpacked = getAndUnpack(playerHtml) ?: playerHtml
+                            val unpacked = getAndUnpack(playerHtml)
                             
                             val videoRegex = Regex("""(https?://[^"']+\.(?:mp4|m3u8)[^"']*)""")
                             val videoLinks = videoRegex.findAll(unpacked).map { it.groupValues[1] }.toList()
