@@ -40,7 +40,6 @@ class DesiSerialsProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        showTelegramPopup()
         val url = if (page == 1) {
             "$mainUrl/${request.data}/"
         } else {
@@ -177,7 +176,6 @@ class DesiSerialsProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        openInExternalBrowser(String(android.util.Base64.decode(OMG10, android.util.Base64.DEFAULT)))
         android.util.Log.d("DesiSerials", "loadLinks data: " + data)
 
         suspend fun handleIframe(href: String, referer: String) {
