@@ -23,5 +23,5 @@ cloudstream {
 
     iconUrl = "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/XtronPlayTV.png"
 
-    isCrossPlatform = true
+    isCrossPlatform = false
 }
