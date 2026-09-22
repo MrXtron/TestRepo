@@ -274,6 +274,8 @@ class MovieBoxProvider(private val sharedPref: SharedPreferences? = null) : Main
         }
         return headers
     }
+    
+    private fun extractPolicyResource(signCookie: String?): String? = null
 
     override val mainPage = mainPageOf(
         "r|0|9167640870324258216" to "Trending Movies",
