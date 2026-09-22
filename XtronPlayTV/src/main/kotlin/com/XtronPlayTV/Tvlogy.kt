@@ -37,7 +37,7 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
                 val decoded = base64Decode(encoded)
                 var unpacked = decoded
 
-                val packedMatch = Regex("""\}\('(.*)',\d+,\d+,'(.*)'\.split""")
+                val packedMatch = Regex("""\(' (.*)',\d+,\d+,'(.*)'\.split""")
                     .find(decoded)
 
                 if (packedMatch != null) {
@@ -115,11 +115,10 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
     }
 }
 
-class Tvlogy(private val source:String) : ExtractorApi() {
+class Tvlogy(private val source: String) : ExtractorApi() {
     override val mainUrl = "https://tvlogy.to"
     override val name = "Tvlogy"
     override val requiresReferer = true
-
 
     override suspend fun getUrl(
         url: String,
@@ -127,7 +126,6 @@ class Tvlogy(private val source:String) : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-
         val id = url.substringAfter("data=")
         val data = mapOf(
             "hash" to id,
@@ -154,5 +152,4 @@ class Tvlogy(private val source:String) : ExtractorApi() {
         val hls: Boolean,
         val videoSource: String
     )
-
 }
