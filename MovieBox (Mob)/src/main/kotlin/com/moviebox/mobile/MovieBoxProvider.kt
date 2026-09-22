@@ -591,10 +591,9 @@ class MovieBoxProvider(private val sharedPref: SharedPreferences? = null) : Main
         }
 
         val (tmdbId, imdbId) = identifyID(
-            title = title.substringBefore("(").trim(),
+            title = title.substringBefore("()").trim(),
             year = year,
             imdbRatingValue = imdbRating?.toDouble()?.div(10)
-            )
         )
 
         val logoUrl = fetchTmdbLogoUrl(
