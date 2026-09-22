@@ -155,7 +155,7 @@ class BollyzoneProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        app.get("${proxy}?url=${data}", referer = mainUrl)
+        app.get("${XtronPlayTVPlugin.proxy}/?url=${data}", referer = mainUrl)
             .document.select(".MovieList .OptionBx")
             .amap {
 
