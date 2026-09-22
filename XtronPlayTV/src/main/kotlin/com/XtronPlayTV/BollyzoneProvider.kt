@@ -25,11 +25,10 @@ class BollyzoneProvider : MainAPI() {
     override var lang = "hi"
     override var mainUrl = "https://www.bollyzone.to"
     override var name = "Bollyzone"
-    val proxy="https://desicinemas.phisherdesicinema.workers.dev/"
 
     override val mainPage = mainPageOf(
-        "$proxy?url=$mainUrl/series/" to "Episodes",
-        "$proxy?url=$mainUrl/tv-channels/" to "Series",
+        "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/series/" to "Episodes",
+        "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/tv-channels/" to "Series",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -71,7 +70,7 @@ class BollyzoneProvider : MainAPI() {
         val doc = try {
             app.get(url, referer = "$mainUrl/").document
         } catch (_: Exception) {
-            app.get("$proxy?url=$url", referer = "$mainUrl/").document
+            app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = "$mainUrl/").document
         }
 
         return doc.select("ul.MovieList li.TPostMv")
@@ -99,7 +98,7 @@ class BollyzoneProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val doc = app.get("$proxy?url=$url", referer = mainUrl, timeout = 10000).document
+        val doc = app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = mainUrl, timeout = 10000).document
 
         // Handle single movie under "series"
         if (url.contains("/series/")) {
@@ -115,7 +114,7 @@ class BollyzoneProvider : MainAPI() {
 
         // Handle TV series
         val title = doc.select("meta[property=og:title]").attr("content")
-        val posterUrl = "$proxy?url=" + doc.selectFirst("div.Image img")?.getImageAttr()
+        val posterUrl = "${XtronPlayTVPlugin.proxy}/?url=" + doc.selectFirst("div.Image img")?.getImageAttr()
         val description = doc.select("meta[property=og:description]").attr("content")
         val tags = doc.select(".Genre a").map { it.text() }.distinct()
 
@@ -126,7 +125,7 @@ class BollyzoneProvider : MainAPI() {
         val dateRegex = Regex("""\b\d{1,2}(st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b""")
 
         val episodes = (1..lastPageNumber).flatMap { page ->
-            val pageUrl = "$proxy?url=$url/page/$page/"
+            val pageUrl = "${XtronPlayTVPlugin.proxy}/?url=$url/page/$page/"
             val pageDoc = app.get(pageUrl, referer = mainUrl, timeout = 10000).document
 
             pageDoc.select("ul.MovieList li").mapNotNull { element ->
@@ -138,7 +137,7 @@ class BollyzoneProvider : MainAPI() {
 
                 newEpisode(epUrl) {
                     name = epName
-                    this.posterUrl = "$proxy?url=$epPoster"
+                    this.posterUrl = "${XtronPlayTVPlugin.proxy}/?url=$epPoster"
                 }
             }
         }.toMutableList()

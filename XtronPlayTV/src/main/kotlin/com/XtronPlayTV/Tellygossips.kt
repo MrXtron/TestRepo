@@ -1,6 +1,6 @@
 package com.XtronPlayTV
 
-//import com.lagradost.api.Log
+import com.lagradost.api.Log
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -21,7 +21,7 @@ class Tellygossips(private val source:String) : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val doc = app.get(url, referer = this.referer).document
+        val doc = app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = this.referer).document
         val configStr = doc.select("script")
             .map { it.data() }
             .firstOrNull { it.contains("var config = ") }
