@@ -1,20 +1,27 @@
-﻿package com.XtronPlayTV
+package com.XtronPlayTV
 
-import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
+import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
 
 @CloudstreamPlugin
-class XtronPlayTVPlugin: BasePlugin() {
-    override fun load() {
-        // All providers should be added in this manner. Please don't edit the providers list directly.
-        val provider =  DesiSerialsProvider()
+class XtronPlayTVPlugin : Plugin() {
+    
+    companion object {
+        // Central shared proxy URL declared strictly without a trailing slash
+        val proxy = "https://desicinemas.phisherdesicinema.workers.dev"
+    }
+
+    override fun load(context: Context) {
+        val provider = DesiSerialsProvider()
+        
+        // Ordered intentionally to establish DesiSerials as the primary home screen tab
         registerMainAPI(provider)
         registerMainAPI(BollyzoneProvider())
-        registerExtractorAPI(Tvlogyflow((provider.name)))
-        registerExtractorAPI(Tellygossips((provider.name)))
-        registerExtractorAPI(Tvlogyflow((provider.name)))
+        
+        // Register distinct video streaming extractors for the plugin pipeline
+        registerExtractorAPI(Tvlogyflow(provider.name))
+        registerExtractorAPI(Tvlogy(provider.name))
+        registerExtractorAPI(Tellygossips(provider.name))
     }
 }
-
-
