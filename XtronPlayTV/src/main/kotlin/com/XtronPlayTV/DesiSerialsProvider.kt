@@ -15,8 +15,7 @@ import android.os.Handler
 import android.os.Looper
 
 class DesiSerialsProvider : MainAPI() {
-
-    override var mainUrl = "https://www.desi-serials.to"
+    override var mainUrl = "https://desi-serials.to"
     override var name = "DesiSerials"
     override val hasMainPage = true
     override var lang = "hi"
@@ -36,25 +35,17 @@ class DesiSerialsProvider : MainAPI() {
         "zee-tv" to "Zee TV"
     )
 
-    override suspend fun getMainPage(
-        page: Int,
-        request: MainPageRequest
-    ): HomePageResponse {
-        val targetPath = if (page == 1) request.data else "${request.data}page/$page/"
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val targetPath = if (page == 1) request.data else "${request.data}/page/$page/"
         val cleanPath = targetPath.replace(mainUrl, "").replace("//", "/").trimStart('/')
         val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/$cleanPath"
+        
         val document = app.get(url).document
-        
-        android.util.Log.d("DesiSerials", "getMainPage url=$url title=${document.title()}")
-        
-        // Use a more specific article selector to avoid matching the main page container
         val posts = document.select("article.type-post, article.post-grid, .porto-sicon-wrapper, li.cat-item")
-        android.util.Log.d("DesiSerials", "getMainPage posts=${posts.size}")
         
         val home = posts.mapNotNull {
             it.toSearchResult()
         }.toMutableList()
-        android.util.Log.d("DesiSerials", "getMainPage home=${home.size}")
 
         if (home.isEmpty()) {
             val docTitle = document.title().ifBlank { "No Title" }
@@ -73,14 +64,14 @@ class DesiSerialsProvider : MainAPI() {
         val href = fixUrl(titleElement.attr("href"))
         
         val imgElement = this.selectFirst("div.post-image img, span.post-image img") ?: this.selectFirst("img")
-        var posterUrl = imgElement?.attr("data-oi")
-        if (posterUrl.isNullOrBlank()) {
-            posterUrl = imgElement?.attr("src")
+        var rawPoster = imgElement?.attr("data-oi")
+        if (rawPoster.isNullOrBlank()) {
+            rawPoster = imgElement?.attr("src")
         }
-        posterUrl = fixUrlNull(posterUrl)
+        val posterUrl = fixUrlNull(rawPoster)
 
         return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
-            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy))
+            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy)) {
                 "${XtronPlayTVPlugin.proxy}/?url=$posterUrl"
             } else {
                 posterUrl
@@ -93,19 +84,15 @@ class DesiSerialsProvider : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        
         val encodedQuery = query.replace(" ", "+").lowercase()
-        val searchUrl = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/?s=$encodedQuery"
+        val searchUrl = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl&s=$encodedQuery"
         val document = app.get(searchUrl).document
-        
-        // Search results use div.post-item with h3.porto-post-title
         val results = document.select("div.post-item, article.type-post, article.post-grid, article.post")
         
         return results.mapNotNull {
             it.toSearchResult()
         }
     }
-
     override suspend fun load(url: String): LoadResponse? {
         val proxiedUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
             "${XtronPlayTVPlugin.proxy}/?url=$url"
@@ -121,11 +108,14 @@ class DesiSerialsProvider : MainAPI() {
 
         val posterRegex = Regex("(https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&\\/\\/=]*jpg))")
         val posterRaw = doc.selectFirst("div.page-image img")?.attr("src") ?: doc.html()
-        val poster = posterRegex.find(posterRaw)?.value?.trim()
+        val rawPoster = posterRegex.find(posterRaw)?.value?.trim()
+        val poster = if (!rawPoster.isNullOrBlank() && !rawPoster.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$rawPoster"
+        } else {
+            rawPoster
+        }
 
         val episodes = mutableListOf<Episode>()
-        
-        // 1. Check if it's a list of episodes (Index page)
         val posts = doc.select("article.type-post")
         posts.forEach { element ->
             val a = element.selectFirst("h3.thumb-info-inner a, h2.entry-title a")
@@ -141,8 +131,6 @@ class DesiSerialsProvider : MainAPI() {
             }
         }
 
-        // 2. Single episode page - use the URL itself as the episode data
-        //    loadLinks will handle extracting iframes and a[href] links from the page
         if (episodes.isEmpty()) {
             episodes.add(
                 newEpisode(data = url) {
@@ -160,98 +148,71 @@ class DesiSerialsProvider : MainAPI() {
         }
     }
 
-    private fun <T, R : Any> Iterable<T>.mapNotBlank(transform: (T) -> R?): List<R> {
-        return mapNotNull(transform).filter { 
-            val s = it.toString()
-            s.isNotBlank() && s != "null"
-        }
-    }
-
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        android.util.Log.d("DesiSerials", "loadLinks data: " + data)
-
         suspend fun handleIframe(href: String, referer: String) {
             val url = if (href.startsWith("//")) "https:$href" else href
             
             if (url.contains("desi-snation") || url.contains("tvarticles") || url.contains("desi-serials") || url.contains("bolly")) {
-                // Proprietary iframe wrapper, we need to dig deeper
-                android.util.Log.d("DesiSerials", "handleIframe fetch wrapper: $url")
-                val vidResponse = app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = referer)
+                val secureIframeUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
+                    "${XtronPlayTVPlugin.proxy}/?url=$url"
+                } else {
+                    url
+                }
+                val vidResponse = app.get(secureIframeUrl, referer = referer)
                 val vidText = vidResponse.text
-                
                 val vidDoc = vidResponse.document
                 val nestedIframes = vidDoc.select("iframe[src]")
                 val nestedMatches = nestedIframes.map { it.attr("src") }
-                android.util.Log.d("DesiSerials", "handleIframe nested iframes: ${nestedMatches.size}")
                 
                 nestedMatches.forEach { nestedSrc ->
-                    val nestedUrl = nestedSrc
-                    val fullNestedUrl = if (nestedUrl.startsWith("//")) "https:$nestedUrl" else nestedUrl
-                    android.util.Log.d("DesiSerials", "handleIframe found nestedUrl: $fullNestedUrl")
+                    val fullNestedUrl = if (nestedSrc.startsWith("//")) "https:$nestedSrc" else nestedSrc
                     
                     if (fullNestedUrl.contains("flow.tvlogy") || fullNestedUrl.contains("tvlogy.to")) {
-                    // Securely delegate the m3u8 pipeline extraction onto the modular Tvlogy implementation
-                    Tvlogyflow(this.name).getUrl(fullNestedUrl, url, subtitleCallback, callback)
+                        Tvlogyflow(this.name).getUrl(fullNestedUrl, url, subtitleCallback, callback)
                     } else if (fullNestedUrl.contains("speedwatch")) {
-                        // Custom high-performance extractor bypass loop designed specifically for JuicyCodes unpacked streams
                         try {
                             val proxiedSpeedwatchUrl = "${XtronPlayTVPlugin.proxy}/?url=$fullNestedUrl"
                             val playerHtml = app.get(proxiedSpeedwatchUrl, referer = url).text
                             val base64Match = Regex("""JuicyCodes\.Run\s*\(\s*["']([^"']+)["']\s*\)""").find(playerHtml)
-
+                            
                             if (base64Match != null) {
                                 val base64Code = base64Match.groupValues[1]
                                 val decodedStr = String(android.util.Base64.decode(base64Code, android.util.Base64.DEFAULT))
                                 val unpacked = getAndUnpack(decodedStr)
                                 val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
                                 val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
-
+                                
                                 m3u8Links.forEach { source ->
                                     callback.invoke(
-                                        newExtractorLink(
-                                            "SpeedWatch",
-                                            "SpeedWatch",
-                                            source,
-                                            type = ExtractorLinkType.M3U8
-                                        ) {
+                                        newExtractorLink("SpeedWatch", "SpeedWatch", source, type = ExtractorLinkType.M3U8) {
                                             this.referer = fullNestedUrl
                                             this.quality = Qualities.Unknown.value
                                         }
                                     )
                                 }
                             } else {
-                                 // Fallback onto framework core library extractors if dynamic token matching fails
-                                 loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
+                                loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                             }
-                        } catch (e: Exception) {
-                            android.util.Log.d("DesiSerials", "SpeedWatch manual unpacking failed: ${e.message}")
+                        } catch (_: Exception) {
                             loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                         }
                     } else {
-                        // Route standard backup streams through the integrated cloudstream extraction engine
                         loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                     }
-
                 }
                 
-                // Also look for direct video links just in case
                 val videoRegex = Regex("""(https?://[^"']+\.(?:m3u8|mp4)[^"']*)""")
                 val sources = videoRegex.findAll(vidText).map { it.groupValues[1] }.distinct().toList()
                 
                 sources.forEach { source ->
                     val isM3u8 = source.contains(".m3u8")
                     callback.invoke(
-                        newExtractorLink(
-                            this.name,
-                            this.name,
-                            source,
-                            type = if (isM3u8) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO
-                        ) {
+                        newExtractorLink(this.name, this.name, source, type = if (isM3u8) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO) {
                             this.referer = url
                             this.quality = if (isM3u8) Qualities.Unknown.value else Qualities.P720.value
                         }
@@ -263,32 +224,28 @@ class DesiSerialsProvider : MainAPI() {
         }
 
         if (data.startsWith("http")) {
-            // Load iframes dynamically from the episode URL via global proxy
-            val doc = app.get("${XtronPlayTVPlugin.proxy}/?url=$data").document
-
+            val secureDataUrl = if (!data.startsWith(XtronPlayTVPlugin.proxy)) {
+                "${XtronPlayTVPlugin.proxy}/?url=$data"
+            } else {
+                data
+            }
+            val doc = app.get(secureDataUrl).document
             val iframes = doc.select("iframe[src]").map { it.attr("src") }
             val aLinks = doc.select("div.entry-content p a[href]").map { it.attr("href") }.filter { href ->
                 href.contains("desi-snation") || href.contains("tvarticles") || href.contains("desi-serials") || href.contains("bolly") || href.contains("dai.ly") || href.contains("dailymotion.com") || href.contains("vkprime") || href.contains("speedwatch")
             }
             val allLinks = (iframes + aLinks).distinct()
             
-            android.util.Log.d("DesiSerials", "loadLinks links found: \${allLinks.size}")
             allLinks.forEach {
-                android.util.Log.d("DesiSerials", "loadLinks handleIframe: " + it)
                 handleIframe(it, data)
             }
         } else if (data.startsWith("[")) {
-            // Load directly from JSON payload (fallback for older loads)
             try {
-                // Try parsing as a list of strings (iframe src)
                 val links = parseJson<List<String>>(data)
                 links.amap { link ->
                     handleIframe(link, "$mainUrl/")
                 }
-            } catch (e: Exception) {
-                // Ignore parsing error for Episode objects because Episode object contains the url inside data field which is handled in next iteration
-                android.util.Log.d("DesiSerials", "loadLinks JSON parse error: " + e.message)
-            }
+            } catch (_: Exception) {}
         }
         return true
     }
