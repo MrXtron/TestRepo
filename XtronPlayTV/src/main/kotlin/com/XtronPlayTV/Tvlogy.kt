@@ -37,10 +37,12 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
                 val decoded = base64Decode(encoded)
                 var unpacked = decoded
 
-                val packedMatch = Regex("""\(' (.*)',\d+,\d+,'(.*)'\.split""")
+                // Standardized character-escape expression to safely parse packed javascript structures
+                val packedMatch = Regex("\\}\\('(.*)',\\d+,\\d+,'(.*)'\\.split")
                     .find(decoded)
 
                 if (packedMatch != null) {
+                    // Extract payload values cleanly using explicit string array array indices
                     val payload = packedMatch.groupValues[1]
                     val symtab = packedMatch.groupValues[2].split("|")
 
@@ -132,7 +134,16 @@ class Tvlogy(private val source: String) : ExtractorApi() {
             "r" to "http%3A%2F%2Ftellygossips.net%2F"
         )
         val headers = mapOf("X-Requested-With" to "XMLHttpRequest")
-        val meta = app.post("$url&do=getVideo", headers = headers, referer = referer, data = data)
+        
+        // Wrap dynamic asynchronous post requests safely using the centralized proxy network tunnel
+        val ajaxTargetUrl = "$url&do=getVideo"
+        val securePostUrl = if (!ajaxTargetUrl.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$ajaxTargetUrl"
+        } else {
+            ajaxTargetUrl
+        }
+
+        val meta = app.post(securePostUrl, headers = headers, referer = referer, data = data)
             .parsedSafe<MetaData>() ?: return
 
         callback(

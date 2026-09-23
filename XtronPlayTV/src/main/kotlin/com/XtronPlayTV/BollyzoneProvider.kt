@@ -27,12 +27,14 @@ class BollyzoneProvider : MainAPI() {
     override var name = "Bollyzone"
 
     override val mainPage = mainPageOf(
-        "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/series/" to "Episodes",
-        "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/tv-channels/" to "Series",
+        "series/" to "Episodes",
+        "tv-channels/" to "Series",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val url = if (page == 1) request.data else "${request.data}page/$page/"
+        val targetPath = if (page == 1) "${request.data}" else "${request.data}page/$page/"
+        val cleanPath = targetPath.replace(mainUrl, "").replace("//", "/").trimStart('/')
+        val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/$cleanPath"
         val doc = app.get(url, referer = "$mainUrl/").document
 
         val homePageList = mutableListOf<HomePageList>()
@@ -92,8 +94,16 @@ class BollyzoneProvider : MainAPI() {
 
         val posterUrl = fixUrlNull(img?.getImageAttr())
 
-        return newTvSeriesSearchResponse(title, href) {
-            this.posterUrl = posterUrl
+        return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
+            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy))
+                "${XtronPlayTVPlugin.proxy}/?url=$posterUrl"
+            } else {
+                posterUrl
+            }
+            this.posterHeaders = mapOf(
+                "referer" to "$mainUrl/",
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            )
         }
     }
 

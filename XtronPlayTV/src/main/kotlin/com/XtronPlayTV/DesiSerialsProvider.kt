@@ -40,8 +40,9 @@ class DesiSerialsProvider : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val targetPath = if (page == 1) "${request.data}/" else "${request.data}/page/$page/"
-        val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/$targetPath"
+        val targetPath = if (page == 1) request.data else "${request.data}page/$page/"
+        val cleanPath = targetPath.replace(mainUrl, "").replace("//", "/").trimStart('/')
+        val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/$cleanPath"
         val document = app.get(url).document
         
         android.util.Log.d("DesiSerials", "getMainPage url=$url title=${document.title()}")
@@ -79,8 +80,15 @@ class DesiSerialsProvider : MainAPI() {
         posterUrl = fixUrlNull(posterUrl)
 
         return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
-            this.posterUrl = posterUrl
-            this.posterHeaders = mapOf("referer" to "$mainUrl/")
+            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy))
+                "${XtronPlayTVPlugin.proxy}/?url=$posterUrl"
+            } else {
+                posterUrl
+            }
+            this.posterHeaders = mapOf(
+                "referer" to "$mainUrl/",
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            )
         }
     }
 
@@ -99,8 +107,12 @@ class DesiSerialsProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        
-        val doc = app.get("${XtronPlayTVPlugin.proxy}/?url=$url").document
+        val proxiedUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$url"
+        } else {
+            url
+        }
+        val doc = app.get(proxiedUrl).document
         
         val title = doc.selectFirst("h1.page-title")?.text()?.trim() 
             ?: doc.selectFirst("h2.heading-primary")?.text()?.trim()
@@ -183,16 +195,48 @@ class DesiSerialsProvider : MainAPI() {
                     android.util.Log.d("DesiSerials", "handleIframe found nestedUrl: $fullNestedUrl")
                     
                     if (fullNestedUrl.contains("flow.tvlogy") || fullNestedUrl.contains("tvlogy.to")) {
+                    // Securely delegate the m3u8 pipeline extraction onto the modular Tvlogy implementation
+                    Tvlogyflow(this.name).getUrl(fullNestedUrl, url, subtitleCallback, callback)
+                    } else if (fullNestedUrl.contains("speedwatch")) {
+                        // Custom high-performance extractor bypass loop designed specifically for JuicyCodes unpacked streams
                         try {
-                            Tvlogyflow(this.name).getUrl(fullNestedUrl, url, subtitleCallback, callback)
+                            val proxiedSpeedwatchUrl = "${XtronPlayTVPlugin.proxy}/?url=$fullNestedUrl"
+                            val playerHtml = app.get(proxiedSpeedwatchUrl, referer = url).text
+                            val base64Match = Regex("""JuicyCodes\.Run\s*\(\s*["']([^"']+)["']\s*\)""").find(playerHtml)
+
+                            if (base64Match != null) {
+                                val base64Code = base64Match.groupValues[1]
+                                val decodedStr = String(android.util.Base64.decode(base64Code, android.util.Base64.DEFAULT))
+                                val unpacked = getAndUnpack(decodedStr)
+                                val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
+                                val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
+
+                                m3u8Links.forEach { source ->
+                                    callback.invoke(
+                                        newExtractorLink(
+                                            "SpeedWatch",
+                                            "SpeedWatch",
+                                            source,
+                                            type = ExtractorLinkType.M3U8
+                                        ) {
+                                            this.referer = fullNestedUrl
+                                            this.quality = Qualities.Unknown.value
+                                        }
+                                    )
+                                }
+                            } else {
+                                 // Fallback onto framework core library extractors if dynamic token matching fails
+                                 loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
+                            }
                         } catch (e: Exception) {
-                            android.util.Log.d("DesiSerials", "Tvlogyflow delegation failed: ${e.message}")
-                            loadExtractor(fullNestedUrl, subtitleCallback, callback)
+                            android.util.Log.d("DesiSerials", "SpeedWatch manual unpacking failed: ${e.message}")
+                            loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                         }
                     } else {
-                        // Built-in extractors automatically handle speedwatch, vkprime, and other video hosts safely via dynamic engine
+                        // Route standard backup streams through the integrated cloudstream extraction engine
                         loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                     }
+
                 }
                 
                 // Also look for direct video links just in case

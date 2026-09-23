@@ -21,7 +21,13 @@ class Tellygossips(private val source:String) : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val doc = app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = this.referer).document
+        val proxiedUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$url"
+        } else {   
+             url
+        }
+        val doc = app.get(proxiedUrl, referer = this.referer).document
+        val configStr = doc.select("script")
         val configStr = doc.select("script")
             .map { it.data() }
             .firstOrNull { it.contains("var config = ") }
