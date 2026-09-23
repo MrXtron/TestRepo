@@ -23,7 +23,7 @@ class BollyzoneProvider : MainAPI() {
         TvType.TvSeries
     )
     override var lang = "hi"
-    override var mainUrl = "https://www.bollyzone.to"
+    override var mainUrl = "https://bollyzone.to"
     override var name = "Bollyzone"
 
     override val mainPage = mainPageOf(
@@ -32,11 +32,11 @@ class BollyzoneProvider : MainAPI() {
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val targetPath = if (page == 1) "${request.data}" else "${request.data}page/$page/"
+        val targetPath = if (page == 1) request.data else "${request.data}page/$page/"
         val cleanPath = targetPath.replace(mainUrl, "").replace("//", "/").trimStart('/')
         val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/$cleanPath"
+        
         val doc = app.get(url, referer = "$mainUrl/").document
-
         val homePageList = mutableListOf<HomePageList>()
 
         val headers = doc.select("h2.Title").filter {
@@ -68,12 +68,9 @@ class BollyzoneProvider : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val url = "$mainUrl/?s=$query"
-        val doc = try {
-            app.get(url, referer = "$mainUrl/").document
-        } catch (_: Exception) {
-            app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = "$mainUrl/").document
-        }
+        val encodedQuery = query.replace(" ", "+").lowercase()
+        val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl&s=$encodedQuery"
+        val doc = app.get(url, referer = "$mainUrl/").document
 
         return doc.select("ul.MovieList li.TPostMv")
             .mapNotNull { it.toHomePageResult() }
@@ -91,11 +88,10 @@ class BollyzoneProvider : MainAPI() {
         val title = selectFirst("h2.Title")?.text()?.trim() ?: return null
         val href = fixUrlNull(selectFirst("a")?.attr("href")) ?: return null
         val img = selectFirst("img")
-
         val posterUrl = fixUrlNull(img?.getImageAttr())
 
-        return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
-            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy))
+        return newTvSeriesSearchResponse(title, href) {
+            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy)) {
                 "${XtronPlayTVPlugin.proxy}/?url=$posterUrl"
             } else {
                 posterUrl
@@ -108,23 +104,36 @@ class BollyzoneProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val doc = app.get("${XtronPlayTVPlugin.proxy}/?url=$url", referer = mainUrl, timeout = 10000).document
+        val proxiedUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$url"
+        } else {
+            url
+        }
+        val doc = app.get(proxiedUrl, referer = mainUrl, timeout = 10000).document
 
-        // Handle single movie under "series"
         if (url.contains("/series/")) {
             val title = doc.selectFirst("h1")?.text()?.trim() ?: return null
-            val posterUrl = fixUrlNull(doc.selectFirst(".Image img")?.getImageAttr())
+            val rawPoster = fixUrlNull(doc.selectFirst(".Image img")?.getImageAttr())
+            val securePoster = if (!rawPoster.isNullOrBlank() && !rawPoster.startsWith(XtronPlayTVPlugin.proxy)) {
+                "${XtronPlayTVPlugin.proxy}/?url=$rawPoster"
+            } else {
+                rawPoster
+            }
 
             return newTvSeriesLoadResponse(title, url, TvType.Movie, listOf(newEpisode(url) { name = title })) {
-                this.posterUrl = posterUrl
+                this.posterUrl = securePoster
                 plot = doc.selectFirst(".Description p")?.text()
                 tags = doc.select(".Genre a").map { it.text() }
             }
         }
 
-        // Handle TV series
         val title = doc.select("meta[property=og:title]").attr("content")
-        val posterUrl = "${XtronPlayTVPlugin.proxy}/?url=" + doc.selectFirst("div.Image img")?.getImageAttr()
+        val rawPoster = doc.selectFirst("div.Image img")?.getImageAttr()
+        val posterUrl = if (!rawPoster.isNullOrBlank() && !rawPoster.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$rawPoster"
+        } else {
+            rawPoster
+        }
         val description = doc.select("meta[property=og:description]").attr("content")
         val tags = doc.select(".Genre a").map { it.text() }.distinct()
 
@@ -147,7 +156,11 @@ class BollyzoneProvider : MainAPI() {
 
                 newEpisode(epUrl) {
                     name = epName
-                    this.posterUrl = "${XtronPlayTVPlugin.proxy}/?url=$epPoster"
+                    this.posterUrl = if (!epPoster.isNullOrBlank() && !epPoster.startsWith(XtronPlayTVPlugin.proxy)) {
+                        "${XtronPlayTVPlugin.proxy}/?url=$epPoster"
+                    } else {
+                        epPoster
+                    }
                 }
             }
         }.toMutableList()
@@ -165,10 +178,15 @@ class BollyzoneProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        app.get("${XtronPlayTVPlugin.proxy}/?url=${data}", referer = mainUrl)
+        val secureDataUrl = if (!data.startsWith(XtronPlayTVPlugin.proxy)) {
+            "${XtronPlayTVPlugin.proxy}/?url=$data"
+        } else {
+            data
+        }
+
+        app.get(secureDataUrl, referer = mainUrl)
             .document.select(".MovieList .OptionBx")
             .amap {
-
                 val name = it.select("p.AAIco-dns").text()
                 val link = it.select("a").attr("href")
 
@@ -181,7 +199,12 @@ class BollyzoneProvider : MainAPI() {
                     "Cache-Control" to "no-cache"
                 )
 
-                val src = app.get(link, headers = headers)
+                val secureLink = if (!link.startsWith(XtronPlayTVPlugin.proxy)) {
+                    "${XtronPlayTVPlugin.proxy}/?url=$link"
+                } else {
+                    link
+                }
+                val src = app.get(secureLink, headers = headers)
                 val doc = src.document
 
                 val iframe = doc.selectFirst("#Proceed a[href], a.button.button1, a.button1")
@@ -190,7 +213,6 @@ class BollyzoneProvider : MainAPI() {
 
                 val iframeURL = resolveIframeSrc(iframe) ?: doc.selectFirst("IFRAME")?.attr("src")
 
-                // Fallback when iframe not found
                 if (iframeURL.isNullOrBlank()) {
                     if (iframe.isBlank()) return@amap
 
@@ -199,29 +221,14 @@ class BollyzoneProvider : MainAPI() {
 
                     val token = pathParts.last()
                     val type = pathParts.dropLast(1).last()
-
                     val playerUrl = "https://flow.tvlogy.to/$type/$token/"
 
-                    loadSourceNameExtractor(
-                        name,
-                        playerUrl,
-                        mainUrl,
-                        subtitleCallback,
-                        callback
-                    )
+                    loadSourceNameExtractor(name, playerUrl, mainUrl, subtitleCallback, callback)
                     return@amap
                 }
 
-                // Normal flow
-                loadSourceNameExtractor(
-                    name,
-                    iframeURL,
-                    mainUrl,
-                    subtitleCallback,
-                    callback
-                )
+                loadSourceNameExtractor(name, iframeURL, mainUrl, subtitleCallback, callback)
             }
-
         return true
     }
 
