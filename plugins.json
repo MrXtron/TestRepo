@@ -2,7 +2,7 @@
     {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/MovieBox (Mob).cs3",
         "status": 1,
-        "version": 24,
+        "version": 25,
         "name": "MovieBox (Mob)",
         "internalName": "MovieBox (Mob)",
         "authors": [
@@ -18,12 +18,12 @@
         ],
         "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/MovieBox.png",
         "apiVersion": 1,
-        "fileHash": "sha256-a155b3f2c37b7a22af40f9a6e7b7d33c4ba3fed0974ff9799e2ed80b07a5a2ba"
+        "fileHash": "sha256-0962a641642ec6581c8d7f9c7cebf13da161dcee49c58b96501062ea3c886782"
     },
     {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/XtronPlayT.cs3",
         "status": 1,
-        "version": 12,
+        "version": 13,
         "name": "XtronPlayT",
         "internalName": "XtronPlayT",
         "authors": [
@@ -38,12 +38,12 @@
         ],
         "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/XtronPlayTV.png",
         "apiVersion": 1,
-        "fileHash": "sha256-5ceb700cda290b5ea0ea978acf3504a19bac6bee599f9d1f418a2cf41f143312"
+        "fileHash": "sha256-6d86fd6a351014a41b59b66953f9cb080a18ac2be61a9bf407f37d13e78440f0"
     },
     {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/XtronPlayTV.cs3",
         "status": 1,
-        "version": 15,
+        "version": 16,
         "name": "XtronPlayTV",
         "internalName": "XtronPlayTV",
         "authors": [
@@ -59,6 +59,6 @@
         ],
         "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/XtronPlayTV.png",
         "apiVersion": 1,
-        "fileHash": "sha256-fb96a4cfc868c85893caef22457b894c02c86af9091b032b0dc2f39b9eb80efb"
+        "fileHash": "sha256-6d99085182dc8b9e996c7ee7114b101d9dae98279570cc937ff3f4ae5b9a46ee"
     }
 ]
