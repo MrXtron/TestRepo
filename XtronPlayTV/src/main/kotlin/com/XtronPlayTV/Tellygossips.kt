@@ -28,7 +28,6 @@ class Tellygossips(private val source:String) : ExtractorApi() {
         }
         val doc = app.get(proxiedUrl, referer = this.referer).document
         val configStr = doc.select("script")
-        val configStr = doc.select("script")
             .map { it.data() }
             .firstOrNull { it.contains("var config = ") }
             ?.let { configRegex.find(it.trim())?.groupValues?.get(1) } ?: return
