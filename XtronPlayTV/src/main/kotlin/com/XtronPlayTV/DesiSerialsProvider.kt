@@ -54,7 +54,7 @@ class DesiSerialsProvider : MainAPI() {
         if (completedItems.isNotEmpty()) {
             val completedResponses = completedItems.amap { item ->
                 val titleElement = item.selectFirst("a")
-                val href = titleElement?.attr("href")?.let { fixUrl(it) }
+                val href = titleElement?.attr("href")?.let { this.fixUrl(it) }
                 val title = titleElement?.text()?.trim() ?: "Unknown Series"
                 
                 if (!href.isNullOrBlank()) {
@@ -63,7 +63,7 @@ class DesiSerialsProvider : MainAPI() {
                         val proxiedShowUrl = "${XtronPlayTVPlugin.proxy}/?url=$href"
                         val showDoc = app.get(proxiedShowUrl).document
                         val rawPoster = showDoc.selectFirst("div[style*=\"float: right\"] img, div.page-image img")?.attr("src")
-                        val posterUrl = fixUrlNull(rawPoster)
+                        val posterUrl = this.fixUrlNull(rawPoster)
 
                         newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
                             this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy)) {
@@ -97,18 +97,6 @@ class DesiSerialsProvider : MainAPI() {
 
         return newHomePageResponse(arrayListOf(HomePageList(request.name, home, isHorizontalImages = true)), hasNext = home.isNotEmpty())
     }
-
-        if (home.isEmpty()) {
-            val docTitle = document.title().ifBlank { "No Title" }
-            val firstText = document.text().take(50)
-            home.add(newTvSeriesSearchResponse("Debug: $docTitle | $firstText", url, TvType.TvSeries) {
-                this.posterUrl = ""
-            })
-        }
-
-        return newHomePageResponse(arrayListOf(HomePageList(request.name, home, isHorizontalImages = true)), hasNext = home.isNotEmpty())
-    }
-
     private fun Element.toSearchResult(): SearchResponse? {
         val titleElement = this.selectFirst("h3.thumb-info-inner a, h2.entry-title a, h5 a.porto-sicon-title-link, h3.porto-post-title a") ?: this.selectFirst("a") ?: return null
         val title = titleElement.text().trim().takeIf { it.isNotBlank() } ?: titleElement.attr("title").trim().takeIf { it.isNotBlank() } ?: "Unknown Series"
@@ -232,7 +220,6 @@ class DesiSerialsProvider : MainAPI() {
             this.posterHeaders = mapOf("referer" to "$mainUrl/")
         }
     }
-
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -275,7 +262,6 @@ class DesiSerialsProvider : MainAPI() {
                                 val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
                                 
                                 m3u8Links.forEach { source ->
-
                                     callback.invoke(
                                         newExtractorLink("SpeedWatch", "SpeedWatch", source, type = ExtractorLinkType.M3U8) {
                                             this.referer = fullNestedUrl
@@ -300,7 +286,6 @@ class DesiSerialsProvider : MainAPI() {
                 val sources = videoRegex.findAll(vidText).map { it.groupValues[1] }.distinct().toList()
                 
                 sources.forEach { source ->
-
                     val isM3u8 = source.contains(".m3u8")
                     callback.invoke(
                         newExtractorLink(this.name, this.name, source, type = if (isM3u8) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO) {
@@ -313,7 +298,7 @@ class DesiSerialsProvider : MainAPI() {
                 // Fixed missing referer parameter to prevent compilation failure
                 loadExtractor(url, referer, subtitleCallback, callback)
             }
-
+        }
 
         if (data.startsWith("http")) {
             val secureDataUrl = if (!data.startsWith(XtronPlayTVPlugin.proxy)) {
