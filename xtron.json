@@ -1,0 +1,7 @@
+{
+    "name": "XtroTEST",
+    "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/RepoIcon.png",
+    "description": "CloudStream Extension for seamless streaming.",
+    "manifestVersion": 1,
+    "pluginLists": ["http://10.192.16.250:8080/storage/emulated/0/xtron/plugins.json"]
+}
