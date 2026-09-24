@@ -69,13 +69,21 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
                 ?.getOrNull(1)
         }
 
+        // Dynamic name detection based on the URL path sub-strings
+        val displayName = when {
+            url.contains("embed020A") -> "Flash Player"
+            url.contains("plyr020A") -> "Dailymotion"
+            url.contains("nflix020A") -> "NetFlix"
+            else -> this.name // Fallback to "Tvlogy" if pattern doesn't match
+        }
+
         suspend fun process(doc: String): Boolean {
             val direct = extractDirect(doc)
             if (!direct.isNullOrEmpty()) {
                 callback(
                     newExtractorLink(
-                        "$name $source",
-                        name,
+                        "$displayName $source",
+                        displayName, // Set the custom source name dynamically here
                         direct,
                         type = INFER_TYPE
                     ) {
@@ -90,8 +98,8 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
             if (!juicy.isNullOrEmpty()) {
                 callback(
                     newExtractorLink(
-                        "$name $source",
-                        name,
+                        "$displayName $source",
+                        displayName, // Set the custom source name dynamically here
                         juicy,
                         type = INFER_TYPE
                     ) {
@@ -146,10 +154,18 @@ class Tvlogy(private val source: String) : ExtractorApi() {
         val meta = app.post(securePostUrl, headers = headers, referer = referer, data = data)
             .parsedSafe<MetaData>() ?: return
 
+        // Dynamic name detection for the secondary Tvlogy ajax class
+        val displayName = when {
+            url.contains("embed020A") -> "Flash Player"
+            url.contains("plyr020A") -> "Dailymotion"
+            url.contains("nflix020A") -> "NetFlix"
+            else -> this.name
+        }
+
         callback(
             newExtractorLink(
-                "$name $source",
-                name,
+                "$displayName $source",
+                displayName, // Set the custom source name dynamically here
                 url = meta.videoSource,
                 ExtractorLinkType.M3U8
             ) {

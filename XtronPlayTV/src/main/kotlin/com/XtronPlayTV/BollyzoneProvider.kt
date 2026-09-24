@@ -120,7 +120,8 @@ class BollyzoneProvider : MainAPI() {
                 rawPoster
             }
 
-            return newTvSeriesLoadResponse(title, url, TvType.Movie, listOf(newEpisode(url) { name = title })) {
+            // Fixed layout crash by using TvType.TvSeries with a single episode mapping for latest single posts
+            return newTvSeriesLoadResponse(title, url, TvType.TvSeries, listOf(newEpisode(url) { name = title })) {
                 this.posterUrl = securePoster
                 plot = doc.selectFirst(".Description p")?.text()
                 tags = doc.select(".Genre a").map { it.text() }

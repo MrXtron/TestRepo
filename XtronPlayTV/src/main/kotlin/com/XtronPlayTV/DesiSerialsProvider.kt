@@ -41,11 +41,62 @@ class DesiSerialsProvider : MainAPI() {
         val url = "${XtronPlayTVPlugin.proxy}/?url=$mainUrl/$cleanPath"
         
         val document = app.get(url).document
-        val posts = document.select("article.type-post, article.post-grid, .porto-sicon-wrapper, li.cat-item")
-        
-        val home = posts.mapNotNull {
-            it.toSearchResult()
-        }.toMutableList()
+        val home = mutableListOf<SearchResponse>()
+
+        // 1. Parse Current Shows & Latest Episodes that already have direct images
+        val regularPosts = document.select("article.type-post, article.post-grid, .porto-sicon-wrapper")
+        regularPosts.forEach {
+            it.toSearchResult()?.let { response -> home.add(response) }
+        }
+
+        // 2. Parse Completed Shows that only have text links by fetching their original posters in parallel
+        val completedItems = document.select("li.cat-item")
+        if (completedItems.isNotEmpty()) {
+            val completedResponses = completedItems.amap { item ->
+                val titleElement = item.selectFirst("a")
+                val href = titleElement?.attr("href")?.let { fixUrl(it) }
+                val title = titleElement?.text()?.trim() ?: "Unknown Series"
+                
+                if (!href.isNullOrBlank()) {
+                    try {
+                        // Route the inner show URL request through proxy infrastructure
+                        val proxiedShowUrl = "${XtronPlayTVPlugin.proxy}/?url=$href"
+                        val showDoc = app.get(proxiedShowUrl).document
+                        val rawPoster = showDoc.selectFirst("div[style*=\"float: right\"] img, div.page-image img")?.attr("src")
+                        val posterUrl = fixUrlNull(rawPoster)
+
+                        newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
+                            this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy)) {
+                                "${XtronPlayTVPlugin.proxy}/?url=$posterUrl"
+                            } else {
+                                posterUrl
+                            }
+                            this.posterHeaders = mapOf(
+                                "referer" to "$mainUrl/",
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            )
+                        }
+                    } catch (_: Exception) {
+                        // Fallback inside homepage if request fails, so the show doesn't disappear
+                        newTvSeriesSearchResponse(title, href, TvType.TvSeries) { this.posterUrl = "" }
+                    }
+                } else {
+                    null
+                }
+            }.filterNotNull()
+            home.addAll(completedResponses)
+        }
+
+        if (home.isEmpty()) {
+            val docTitle = document.title().ifBlank { "No Title" }
+            val firstText = document.text().take(50)
+            home.add(newTvSeriesSearchResponse("Debug: $docTitle | $firstText", url, TvType.TvSeries) {
+                this.posterUrl = ""
+            })
+        }
+
+        return newHomePageResponse(arrayListOf(HomePageList(request.name, home, isHorizontalImages = true)), hasNext = home.isNotEmpty())
+    }
 
         if (home.isEmpty()) {
             val docTitle = document.title().ifBlank { "No Title" }
@@ -93,6 +144,7 @@ class DesiSerialsProvider : MainAPI() {
             it.toSearchResult()
         }
     }
+
     override suspend fun load(url: String): LoadResponse? {
         val proxiedUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
             "${XtronPlayTVPlugin.proxy}/?url=$url"
@@ -106,9 +158,7 @@ class DesiSerialsProvider : MainAPI() {
             ?: doc.selectFirst("h1.entry-title")?.text()?.trim()
             ?: return null
 
-        val posterRegex = Regex("(https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&\\/\\/=]*jpg))")
-        val posterRaw = doc.selectFirst("div.page-image img")?.attr("src") ?: doc.html()
-        val rawPoster = posterRegex.find(posterRaw)?.value?.trim()
+        val rawPoster = doc.selectFirst("div[style*=\"float: right\"] img, div.page-image img")?.attr("src")
         val poster = if (!rawPoster.isNullOrBlank() && !rawPoster.startsWith(XtronPlayTVPlugin.proxy)) {
             "${XtronPlayTVPlugin.proxy}/?url=$rawPoster"
         } else {
@@ -116,18 +166,53 @@ class DesiSerialsProvider : MainAPI() {
         }
 
         val episodes = mutableListOf<Episode>()
-        val posts = doc.select("article.type-post")
-        posts.forEach { element ->
-            val a = element.selectFirst("h3.thumb-info-inner a, h2.entry-title a")
-            if (a != null) {
-                val epHref = fixUrl(a.attr("href"))
-                val epTitle = a.text().trim()
-                if (epHref != url) {
-                    episodes.add(newEpisode(data = epHref) {
-                        name = epTitle
-                        this.posterUrl = poster
-                    })
+        
+        // Initialize pagination variables using the clean base URL format
+        var currentPage = 1
+        var hasNextPage = true
+        val cleanBaseUrl = url.trimEnd('/')
+
+        // Loop aggressively to fetch all hidden older episodes across pages
+        while (hasNextPage) {
+            val pageUrl = if (currentPage == 1) {
+                "${XtronPlayTVPlugin.proxy}/?url=$cleanBaseUrl/"
+            } else {
+                "${XtronPlayTVPlugin.proxy}/?url=$cleanBaseUrl/page/$currentPage/"
+            }
+
+            try {
+                val pageDoc = if (currentPage == 1) doc else app.get(pageUrl).document
+                val posts = pageDoc.select("article.type-post")
+                
+                if (posts.isEmpty()) {
+                    hasNextPage = false
+                    break
                 }
+
+                posts.forEach { element ->
+                    val a = element.selectFirst("h3.thumb-info-inner a, h2.entry-title a")
+                    if (a != null) {
+                        val epHref = fixUrl(a.attr("href"))
+                        val epTitle = a.text().trim()
+                        if (epHref != url) {
+                            episodes.add(newEpisode(data = epHref) {
+                                name = epTitle
+                                this.posterUrl = poster
+                            })
+                        }
+                    }
+                }
+
+                // Check for the presence of the 'Next' pagination button to determine continuity
+                val nextButton = pageDoc.selectFirst("a.next.page-numbers")
+                if (nextButton != null) {
+                    currentPage++
+                } else {
+                    hasNextPage = false
+                }
+            } catch (_: Exception) {
+                // Terminate loop on network failure to return already scraped content gracefully
+                hasNextPage = false
             }
         }
 
@@ -181,13 +266,16 @@ class DesiSerialsProvider : MainAPI() {
                             val base64Match = Regex("""JuicyCodes\.Run\s*\(\s*["']([^"']+)["']\s*\)""").find(playerHtml)
                             
                             if (base64Match != null) {
+                                // Extract the string value from group 1 instead of the entire list reference
                                 val base64Code = base64Match.groupValues[1]
                                 val decodedStr = String(android.util.Base64.decode(base64Code, android.util.Base64.DEFAULT))
                                 val unpacked = getAndUnpack(decodedStr)
                                 val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
+                                // Select index 1 of groupValues to return String instead of a List wrapper
                                 val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
                                 
                                 m3u8Links.forEach { source ->
+
                                     callback.invoke(
                                         newExtractorLink("SpeedWatch", "SpeedWatch", source, type = ExtractorLinkType.M3U8) {
                                             this.referer = fullNestedUrl
@@ -202,14 +290,17 @@ class DesiSerialsProvider : MainAPI() {
                             loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                         }
                     } else {
+                        // Pass the proper referer context to the nested extractor loader
                         loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                     }
                 }
                 
                 val videoRegex = Regex("""(https?://[^"']+\.(?:m3u8|mp4)[^"']*)""")
+                // Extract group index 1 to collect direct string URLs and avoid type mismatches
                 val sources = videoRegex.findAll(vidText).map { it.groupValues[1] }.distinct().toList()
                 
                 sources.forEach { source ->
+
                     val isM3u8 = source.contains(".m3u8")
                     callback.invoke(
                         newExtractorLink(this.name, this.name, source, type = if (isM3u8) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO) {
@@ -219,9 +310,10 @@ class DesiSerialsProvider : MainAPI() {
                     )
                 }
             } else {
-                loadExtractor(url, subtitleCallback, callback)
+                // Fixed missing referer parameter to prevent compilation failure
+                loadExtractor(url, referer, subtitleCallback, callback)
             }
-        }
+
 
         if (data.startsWith("http")) {
             val secureDataUrl = if (!data.startsWith(XtronPlayTVPlugin.proxy)) {
