@@ -16,11 +16,9 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.XtronPlayTV.UtilsKt.resolveIframeSrc
-import com.XtronPlayTV.UtilsKt.loadSourceNameExtractor
 import org.jsoup.nodes.Element
 
-class BollyzoneProvider : DesiSerialsProvider() {
+class BollyzoneProvider : MainAPI() {
     override val supportedTypes = setOf(
         TvType.TvSeries
     )
@@ -30,7 +28,7 @@ class BollyzoneProvider : DesiSerialsProvider() {
 
     override val mainPage = mainPageOf(
         "series/" to "Episodes",
-        "tv-channels/" to "Series",
+        "tv-channels/" to "Series"
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -92,7 +90,7 @@ class BollyzoneProvider : DesiSerialsProvider() {
         val img = selectFirst("img")
         val posterUrl = fixUrlNull(img?.getImageAttr())
 
-        return newTvSeriesSearchResponse(title, href) {
+        return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
             this.posterUrl = if (!posterUrl.isNullOrBlank() && !posterUrl.startsWith(XtronPlayTVPlugin.proxy)) {
                 "${XtronPlayTVPlugin.proxy}/?url=$posterUrl"
             } else {

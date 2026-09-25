@@ -19,9 +19,9 @@ class XtronPlayTVPlugin : Plugin() {
         registerMainAPI(provider)
         registerMainAPI(BollyzoneProvider())
         
-        // Register distinct video streaming extractors for the plugin pipeline
-        registerExtractorAPI(Tvlogyflow(provider.name))
-        registerExtractorAPI(Tvlogy(provider.name))
-        registerExtractorAPI(Tellygossips(provider.name))
+        // FIXED: Hardcoded clean string targets to prevent internal provider property reference leaks
+        registerExtractorAPI(Tvlogyflow("DesiSerials"))
+        registerExtractorAPI(Tvlogy("DesiSerials"))
+        registerExtractorAPI(Tellygossips("DesiSerials"))
     }
 }
