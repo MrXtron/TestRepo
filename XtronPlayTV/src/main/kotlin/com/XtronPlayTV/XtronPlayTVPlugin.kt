@@ -7,17 +7,16 @@ import com.lagradost.cloudstream3.plugins.Plugin
 @CloudstreamPlugin
 class XtronPlayTVPlugin : Plugin() {
     override fun load(context: Context) {
-        // Removed the string names; the name is now handled inside the Provider class
         registerMainAPI(DesiSerialsProvider())
         registerMainAPI(BollyzoneProvider())
 
-        // Changed the strings to 'this' to satisfy the 'source' parameter requirement
-        registerExtractorAPI(Tvlogyflow(), this)
-        registerExtractorAPI(Tellygossips(), this)
-        registerExtractorAPI(Tvlogy(), this)
+        registerExtractorAPI(Tvlogyflow("Tvlogyflow"))
+        registerExtractorAPI(Tellygossips("Tellygossips"))
+        registerExtractorAPI(Tvlogy("Tvlogy"))
     }
 
     companion object {
-        const val proxy = "https://desicinemas.phisherdesicinema.workers.dev"
+        const val proxy =
+            "https://desicinemas.phisherdesicinema.workers.dev"
     }
 }
