@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 
 @CloudstreamPlugin
 class XtronPlayTVPlugin: BasePlugin() {
+
     override fun load() {
         // All providers should be added in this manner. Please don't edit the providers list directly.
         val provider = DesiSerialsProvider()
