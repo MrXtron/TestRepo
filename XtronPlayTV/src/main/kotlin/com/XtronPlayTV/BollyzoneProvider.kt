@@ -18,7 +18,7 @@ import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.jsoup.nodes.Element
 
-class BollyzoneProvider : MainAPI() {
+class BollyzoneProvider : DesiSerialsProvider() {
     override val supportedTypes = setOf(
         TvType.TvSeries
     )
