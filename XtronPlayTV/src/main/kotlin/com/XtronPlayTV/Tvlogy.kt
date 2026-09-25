@@ -1,5 +1,6 @@
 package com.XtronPlayTV
 
+import com.lagradost.cloudstream3.MainAPIKt
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.base64Decode
 import com.lagradost.cloudstream3.utils.ExtractorApi
@@ -8,7 +9,15 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
+import kotlin.collections.CollectionsKt
+import kotlin.text.MatchResult
+import kotlin.text.Regex
+import kotlin.text.StringsKt
+import org.jsoup.nodes.Document
 
+// ==========================================
+// 1. Tvlogyflow Extractor Class
+// ==========================================
 class Tvlogyflow(val source: String) : ExtractorApi() {
     override val mainUrl = "https://flow.tvlogy.to"
     override val name = "Tvlogy"
@@ -37,12 +46,10 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
                 val decoded = base64Decode(encoded)
                 var unpacked = decoded
 
-                // Standardized character-escape expression to safely parse packed javascript structures
                 val packedMatch = Regex("\\}\\('(.*)',\\d+,\\d+,'(.*)'\\.split")
                     .find(decoded)
 
                 if (packedMatch != null) {
-                    // Extract payload values cleanly using explicit string array array indices
                     val payload = packedMatch.groupValues[1]
                     val symtab = packedMatch.groupValues[2].split("|")
 
@@ -63,7 +70,7 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
         }
 
         fun extractDirect(doc: String): String? {
-            return Regex(""""src"\s*:\s*"(https?://.*?\.m3u8.*?)"""")
+            return Regex(""""src"\s*:\s*"(https?://.*?\\.m3u8.*?)"""")
                 .find(doc)
                 ?.groupValues
                 ?.getOrNull(1)
@@ -74,7 +81,7 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
             url.contains("embed020A") -> "Flash Player"
             url.contains("plyr020A") -> "Dailymotion"
             url.contains("nflix020A") -> "NetFlix"
-            else -> this.name // Fallback to "Tvlogy" if pattern doesn't match
+            else -> this.name
         }
 
         suspend fun process(doc: String): Boolean {
@@ -82,9 +89,9 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
             if (!direct.isNullOrEmpty()) {
                 callback(
                     newExtractorLink(
-                        "$displayName $source",
-                        displayName, // Set the custom source name dynamically here
-                        direct,
+                        name = "$displayName $source", //FlashPlayer/Dailymotion/Netflix
+                        source = this.name,            // CoreName "Tvlogy"
+                        url = direct,
                         type = INFER_TYPE
                     ) {
                         this.referer = mainUrl
@@ -98,9 +105,9 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
             if (!juicy.isNullOrEmpty()) {
                 callback(
                     newExtractorLink(
-                        "$displayName $source",
-                        displayName, // Set the custom source name dynamically here
-                        juicy,
+                        name = "$displayName $source",
+                        source = this.name,
+                        url = juicy,
                         type = INFER_TYPE
                     ) {
                         this.referer = mainUrl
@@ -125,6 +132,9 @@ class Tvlogyflow(val source: String) : ExtractorApi() {
     }
 }
 
+// ==========================================
+// 2. Tvlogy Extractor Class
+// ==========================================
 class Tvlogy(private val source: String) : ExtractorApi() {
     override val mainUrl = "https://tvlogy.to"
     override val name = "Tvlogy"
@@ -143,7 +153,6 @@ class Tvlogy(private val source: String) : ExtractorApi() {
         )
         val headers = mapOf("X-Requested-With" to "XMLHttpRequest")
         
-        // Wrap dynamic asynchronous post requests safely using the centralized proxy network tunnel
         val ajaxTargetUrl = "$url&do=getVideo"
         val securePostUrl = if (!ajaxTargetUrl.startsWith(XtronPlayTVPlugin.proxy)) {
             "${XtronPlayTVPlugin.proxy}/?url=$ajaxTargetUrl"
@@ -164,10 +173,10 @@ class Tvlogy(private val source: String) : ExtractorApi() {
 
         callback(
             newExtractorLink(
-                "$displayName $source",
-                displayName, // Set the custom source name dynamically here
+                name = "$displayName $source", //FlashPlayer/Dailymotion/Netflix
+                source = this.name,            // CoreName "Tvlogy"
                 url = meta.videoSource,
-                ExtractorLinkType.M3U8
+                type = ExtractorLinkType.M3U8
             ) {
                 this.referer = url
                 this.quality = Qualities.Unknown.value

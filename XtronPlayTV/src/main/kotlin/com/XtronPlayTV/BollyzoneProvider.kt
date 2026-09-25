@@ -8,7 +8,7 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.amap
+import com.lagradost.cloudstream3.mvvm.amap
 import com.lagradost.cloudstream3.fixUrlNull
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
@@ -16,9 +16,11 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.XtronPlayTV.UtilsKt.resolveIframeSrc
+import com.XtronPlayTV.UtilsKt.loadSourceNameExtractor
 import org.jsoup.nodes.Element
 
-class BollyzoneProvider : MainAPI() {
+class BollyzoneProvider : DesiSerialsProvider() {
     override val supportedTypes = setOf(
         TvType.TvSeries
     )
@@ -98,7 +100,7 @@ class BollyzoneProvider : MainAPI() {
             }
             this.posterHeaders = mapOf(
                 "referer" to "$mainUrl/",
-                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0"
             )
         }
     }
@@ -120,7 +122,6 @@ class BollyzoneProvider : MainAPI() {
                 rawPoster
             }
 
-            // Fixed layout crash by using TvType.TvSeries with a single episode mapping for latest single posts
             return newTvSeriesLoadResponse(title, url, TvType.TvSeries, listOf(newEpisode(url) { name = title })) {
                 this.posterUrl = securePoster
                 plot = doc.selectFirst(".Description p")?.text()
@@ -188,7 +189,7 @@ class BollyzoneProvider : MainAPI() {
         app.get(secureDataUrl, referer = mainUrl)
             .document.select(".MovieList .OptionBx")
             .amap {
-                val name = it.select("p.AAIco-dns").text()
+                val name = it.select("p.AAIco-dns").text().trim()
                 val link = it.select("a").attr("href")
 
                 val headers = mapOf(

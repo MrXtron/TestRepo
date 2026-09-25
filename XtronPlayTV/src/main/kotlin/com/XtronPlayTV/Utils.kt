@@ -42,10 +42,10 @@ val JSONParser = object : ResponseParser {
     }
 }
 
-val app = Requests(responseParser = JSONParser).apply {
+// FIXED: Renamed global 'app' instance to 'backendApp' to prevent overlapping references with Cloudstream core app object
+val backendApp = Requests(responseParser = JSONParser).apply {
     defaultHeaders = mapOf("User-Agent" to USER_AGENT)
 }
-
 
 inline fun <reified T : Any> tryParseJson(text: String): T? {
     return try {
@@ -55,20 +55,19 @@ inline fun <reified T : Any> tryParseJson(text: String): T? {
         null
     }
 }
+
 suspend fun resolveIframeSrc(initialUrl: String): String? {
     return try {
         if (initialUrl.isBlank()) return null
 
-        val initialResponse = app.get(initialUrl, allowRedirects = false)
+        val initialResponse = backendApp.get(initialUrl, allowRedirects = false)
 
-        // Extract meta refresh (case-insensitive handling)
         val metaContent = initialResponse.document
             .selectFirst("meta[http-equiv=refresh]")
             ?.attr("content")
             ?.trim()
 
         if (metaContent.isNullOrBlank()) {
-            println("⚠️ No refresh meta tag found")
             return null
         }
 
@@ -81,11 +80,9 @@ suspend fun resolveIframeSrc(initialUrl: String): String? {
             .trim()
 
         if (rawRefreshUrl.isBlank()) {
-            println("⚠️ Refresh URL empty")
             return null
         }
 
-        // Normalize refresh URL
         val refreshUrl = when {
             rawRefreshUrl.startsWith("http", true) -> rawRefreshUrl
             rawRefreshUrl.startsWith("//") -> "https:$rawRefreshUrl"
@@ -94,20 +91,18 @@ suspend fun resolveIframeSrc(initialUrl: String): String? {
         }
 
         if (!refreshUrl.startsWith("http")) {
-            println("⚠️ Invalid refresh URL: $refreshUrl")
             return null
         }
 
-        val refreshResponse = app.get(refreshUrl, allowRedirects = false)
+        val refreshResponse = backendApp.get(refreshUrl, allowRedirects = false)
 
-        // Merge all cookies safely
         val cookieHeader = refreshResponse.headers
             .values("set-cookie")
             .joinToString("; ") { it.substringBefore(";") }
 
         val redirectBaseUrl = getBaseUrl(refreshUrl)
 
-        val finalResponse = app.get(
+        val finalResponse = backendApp.get(
             redirectBaseUrl,
             headers = if (cookieHeader.isNotBlank())
                 mapOf("cookie" to cookieHeader)
@@ -120,11 +115,9 @@ suspend fun resolveIframeSrc(initialUrl: String): String? {
             ?.trim()
 
         if (rawIframe.isNullOrBlank()) {
-            println("⚠️ Iframe src not found")
             return null
         }
 
-        // Normalize iframe URL
         val iframeSrc = when {
             rawIframe.startsWith("http", true) -> rawIframe
             rawIframe.startsWith("//") -> "https:$rawIframe"
@@ -133,15 +126,11 @@ suspend fun resolveIframeSrc(initialUrl: String): String? {
         }
 
         if (!iframeSrc.startsWith("http")) {
-            println("⚠️ Invalid iframe URL: $iframeSrc")
             return null
         }
 
-        println("✅ Found iframe src: $iframeSrc")
         iframeSrc
-
     } catch (e: Exception) {
-        println("❌ Error resolving iframe: ${e.message}")
         null
     }
 }
@@ -170,31 +159,34 @@ suspend fun loadSourceNameExtractor(
 
     loadExtractor(url, referer, subtitleCallback) { link ->
         extractorCallbackScope.launch {
-            val label = buildString {
-                provider?.let { append(it) }
-                if (link.name.isNotEmpty()) {
-                    if (isNotEmpty()) append(' ')
-                    append(link.name)
+            try {
+                // FIXED: Structured builder block to cleanly format dynamic row names without duplicates
+                val label = buildString {
+                    provider?.let { append(it) }
+                    if (link.name.isNotEmpty() && provider?.contains(link.name, true) == false) {
+                        if (isNotEmpty()) append(' ')
+                        append(link.name)
+                    }
+                    sizePart?.let {
+                        if (isNotEmpty()) append(' ')
+                        append(it)
+                    }
                 }
-                sizePart?.let {
-                    if (isNotEmpty()) append(' ')
-                    append(it)
-                }
-            }
 
-            callback(
-                newExtractorLink(
-                    link.source,
-                    label,
-                    link.url
-                ) {
-                    this.quality = quality ?: link.quality
-                    this.type = link.type
-                    this.referer = link.referer
-                    this.headers = link.headers
-                    this.extractorData = link.extractorData
-                }
-            )
+                callback(
+                    newExtractorLink(
+                        link.source,
+                        label.trim(),
+                        link.url
+                    ) {
+                        this.quality = quality ?: link.quality
+                        this.type = link.type
+                        this.referer = link.referer
+                        this.headers = link.headers
+                        this.extractorData = link.extractorData
+                    }
+                )
+            } catch (_: Exception) {}
         }
     }
 }
