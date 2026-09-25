@@ -11,7 +11,7 @@ import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.getAndUnpack
 
-class DesiSerialsProvider : MainAPI() {
+open class DesiSerialsProvider : MainAPI() {
     override var mainUrl = "https://desi-serials.to"
     override var name = "DesiSerials"
     override val hasMainPage = true
