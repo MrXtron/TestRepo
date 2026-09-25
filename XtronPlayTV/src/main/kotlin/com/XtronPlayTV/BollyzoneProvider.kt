@@ -9,7 +9,6 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.mvvm.amap
 import com.lagradost.cloudstream3.fixUrlNull
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
@@ -185,51 +184,51 @@ class BollyzoneProvider : MainAPI() {
             data
         }
 
-        app.get(secureDataUrl, referer = mainUrl)
-            .document.select(".MovieList .OptionBx")
-            .amap {
-                val name = it.select("p.AAIco-dns").text().trim()
-                val link = it.select("a").attr("href")
+        val options = app.get(secureDataUrl, referer = mainUrl).document.select(".MovieList .OptionBx")
+        
+        for (element in options) {
+            val name = element.select("p.AAIco-dns").text().trim()
+            val link = element.select("a").attr("href")
 
-                val headers = mapOf(
-                    "referer" to mainUrl,
-                    "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0",
-                    "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language" to "en-US,en;q=0.5",
-                    "Connection" to "keep-alive",
-                    "Cache-Control" to "no-cache"
-                )
+            val headers = mapOf(
+                "referer" to mainUrl,
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0",
+                "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language" to "en-US,en;q=0.5",
+                "Connection" to "keep-alive",
+                "Cache-Control" to "no-cache"
+            )
 
-                val secureLink = if (!link.startsWith(XtronPlayTVPlugin.proxy)) {
-                    "${XtronPlayTVPlugin.proxy}/?url=$link"
-                } else {
-                    link
-                }
-                val src = app.get(secureLink, headers = headers)
-                val doc = src.document
-
-                val iframe = doc.selectFirst("#Proceed a[href], a.button.button1, a.button1")
-                    ?.attr("href")
-                    .orEmpty()
-
-                val iframeURL = resolveIframeSrc(iframe) ?: doc.selectFirst("IFRAME")?.attr("src")
-
-                if (iframeURL.isNullOrBlank()) {
-                    if (iframe.isBlank()) return@amap
-
-                    val pathParts = iframe.trimEnd('/').split('/')
-                    if (pathParts.size < 2) return@amap
-
-                    val token = pathParts.last()
-                    val type = pathParts.dropLast(1).last()
-                    val playerUrl = "https://flow.tvlogy.to/$type/$token/"
-
-                    loadSourceNameExtractor(name, playerUrl, mainUrl, subtitleCallback, callback)
-                    return@amap
-                }
-
-                loadSourceNameExtractor(name, iframeURL, mainUrl, subtitleCallback, callback)
+            val secureLink = if (!link.startsWith(XtronPlayTVPlugin.proxy)) {
+                "${XtronPlayTVPlugin.proxy}/?url=$link"
+            } else {
+                link
             }
+            val src = app.get(secureLink, headers = headers)
+            val doc = src.document
+
+            val iframe = doc.selectFirst("#Proceed a[href], a.button.button1, a.button1")
+                ?.attr("href")
+                .orEmpty()
+
+            val iframeURL = resolveIframeSrc(iframe) ?: doc.selectFirst("IFRAME")?.attr("src")
+
+            if (iframeURL.isNullOrBlank()) {
+                if (iframe.isBlank()) continue
+
+                val pathParts = iframe.trimEnd('/').split('/')
+                if (pathParts.size < 2) continue
+
+                val token = pathParts.last()
+                val type = pathParts.dropLast(1).last()
+                val playerUrl = "https://flow.tvlogy.to/$type/$token/"
+
+                loadSourceNameExtractor(name, playerUrl, mainUrl, subtitleCallback, callback)
+                continue
+            }
+
+            loadSourceNameExtractor(name, iframeURL, mainUrl, subtitleCallback, callback)
+        }
         return true
     }
 
@@ -241,4 +240,3 @@ class BollyzoneProvider : MainAPI() {
         }
     }
 }
-
