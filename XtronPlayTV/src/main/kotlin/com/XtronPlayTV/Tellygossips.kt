@@ -1,12 +1,14 @@
 package com.XtronPlayTV
 
-import com.lagradost.api.Log
+import android.util.Log
+import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 
 class Tellygossips(private val source:String) : ExtractorApi() {
     override val mainUrl = "https://flow.tellygossips.net"
