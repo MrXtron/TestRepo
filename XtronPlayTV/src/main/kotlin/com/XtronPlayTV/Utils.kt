@@ -42,14 +42,13 @@ val JSONParser = object : ResponseParser {
     }
 }
 
-// FIXED: Renamed global 'app' instance to 'backendApp' to prevent overlapping references with Cloudstream core app object
 val backendApp = Requests(responseParser = JSONParser).apply {
     defaultHeaders = mapOf("User-Agent" to USER_AGENT)
 }
 
 inline fun <reified T : Any> tryParseJson(text: String): T? {
     return try {
-        return JSONParser.parse(text, T::class)
+        JSONParser.parse(text, T::class)
     } catch (e: Exception) {
         e.printStackTrace()
         null
@@ -160,7 +159,6 @@ suspend fun loadSourceNameExtractor(
     loadExtractor(url, referer, subtitleCallback) { link ->
         extractorCallbackScope.launch {
             try {
-                // FIXED: Structured builder block to cleanly format dynamic row names without duplicates
                 val label = buildString {
                     provider?.let { append(it) }
                     if (link.name.isNotEmpty() && provider?.contains(link.name, true) == false) {
@@ -175,12 +173,12 @@ suspend fun loadSourceNameExtractor(
 
                 callback(
                     newExtractorLink(
-                        link.source,
-                        label.trim(),
-                        link.url
+                        source = link.source,
+                        name = label.trim(),
+                        url = link.url,
+                        type = link.type
                     ) {
                         this.quality = quality ?: link.quality
-                        this.type = link.type
                         this.referer = link.referer
                         this.headers = link.headers
                         this.extractorData = link.extractorData

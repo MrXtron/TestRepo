@@ -1,5 +1,6 @@
 package com.XtronPlayTV
 
+import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -165,7 +166,7 @@ class BollyzoneProvider : MainAPI() {
             }
         }.toMutableList()
 
-        return newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+        return newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes.reversed()) {
             this.posterUrl = posterUrl
             this.plot = description
             this.tags = tags
@@ -240,3 +241,4 @@ class BollyzoneProvider : MainAPI() {
         }
     }
 }
+

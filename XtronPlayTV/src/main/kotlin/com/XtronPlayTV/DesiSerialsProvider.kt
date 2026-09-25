@@ -1,5 +1,6 @@
 package com.XtronPlayTV
 
+import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
@@ -8,15 +9,8 @@ import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.mvvm.amap
 import org.jsoup.nodes.Element
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.getAndUnpack
-import com.lagradost.cloudstream3.ui.settings.Globals.TV
-import com.lagradost.cloudstream3.ui.settings.Globals.isLayout
-import android.content.Intent
-import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 
 class DesiSerialsProvider : MainAPI() {
     override var mainUrl = "https://desi-serials.to"
@@ -48,7 +42,7 @@ class DesiSerialsProvider : MainAPI() {
         "star-bharat" to "https://desi-serials.to/wp-content/uploads/2020/08/Star-Bharat.jpg",
         "star-plus-hdepisodes" to "https://desi-serials.to/wp-content/uploads/2025/08/Anupamaa.jpg", 
         "zee-tv" to "https://desi-serials.to/wp-content/uploads/2020/08/Zee-Tv.jpg"
-    )
+        )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val targetPath = if (page == 1) request.data else "${request.data}/page/$page/"
@@ -58,13 +52,11 @@ class DesiSerialsProvider : MainAPI() {
         val document = app.get(url).document
         val home = mutableListOf<SearchResponse>()
 
-        // 1. Directly parse regular grid items with native images to ensure instant loading
         val regularPosts = document.select("article.type-post, article.post-grid, .porto-sicon-wrapper")
         regularPosts.forEach {
             it.toSearchResult()?.let { response -> home.add(response) }
         }
 
-        // 2. OPTIMIZED JUGAD: Map text-only nodes instantly using fallbacks to solve latency bottlenecks
         val fallbackLogo = channelLogos.entries.firstOrNull { request.data.contains(it.key) }?.value ?: ""
         val completedItems = document.select("li.cat-item")
         
@@ -215,6 +207,7 @@ class DesiSerialsProvider : MainAPI() {
             this.posterHeaders = mapOf("referer" to "$mainUrl/")
         }
     }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -234,11 +227,9 @@ class DesiSerialsProvider : MainAPI() {
                 val vidDoc = vidResponse.document
                 val nestedIframes = vidDoc.select("iframe[src]")
                 
-                // Track redirects explicitly matching Tvlogy infrastructure routing
                 if (vidText.contains("flow.tvlogy") || vidText.contains("tvlogy.to") || nestedIframes.any { it.attr("src").contains("tvlogy") }) {
                     val finalNestedUrl = nestedIframes.firstOrNull { it.attr("src").contains("tvlogy") }?.attr("src") 
-                        ?: Regex("""src"\s*:\s*"([^"]+)""").find(vidText)?.groupValues?.getOrNull(1) ?: url
-                    
+                        ?: Regex("""src"\s*:\s*"([^"]+)""").find(vidText)?.groupValues?.getOrNull(1) ?: url    
                     val absoluteNestedUrl = if (finalNestedUrl.startsWith("//")) "https:$finalNestedUrl" else finalNestedUrl
                     Tvlogyflow(targetPlayerName).getUrl(absoluteNestedUrl, url, subtitleCallback, callback)
                     return

@@ -1,6 +1,6 @@
 package com.XtronPlayTV
 
-import com.lagradost.cloudstream3.MainAPIKt
+import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.base64Decode
 import com.lagradost.cloudstream3.utils.ExtractorApi
@@ -9,10 +9,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import kotlin.collections.CollectionsKt
-import kotlin.text.MatchResult
-import kotlin.text.Regex
-import kotlin.text.StringsKt
 import org.jsoup.nodes.Document
 
 // ==========================================
