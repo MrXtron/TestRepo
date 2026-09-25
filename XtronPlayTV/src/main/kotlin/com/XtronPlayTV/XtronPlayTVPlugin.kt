@@ -5,18 +5,19 @@ import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
 
 @CloudstreamPlugin
-class XtronPlayTVPlugin : Plugin() {
+class XtronPlayTVPlugin: BasePlugin() {
+
+    override fun load() {
+        // All providers should be added in this manner. Please don't edit the providers list directly.
+        val provider = DesiSerialsProvider()
+        registerMainAPI(provider)
+        registerMainAPI(BollyzoneProvider())
+        registerExtractorAPI(Tvlogyflow((provider.name)))
+        registerExtractorAPI(Tellygossips((provider.name)))
+        registerExtractorAPI(Tvlogy((provider.name)))
+    }
 
     companion object {
         const val proxy = "https://desicinemas.phisherdesicinema.workers.dev"
-    }
-
-    override fun load(context: Context) {
-        registerMainAPI(DesiSerialsProvider())
-        registerMainAPI(BollyzoneProvider())
-
-        registerExtractorAPI(Tvlogyflow("DesiSerials"))
-        registerExtractorAPI(Tvlogy("DesiSerials"))
-        registerExtractorAPI(Tellygossips("DesiSerials"))
     }
 }
