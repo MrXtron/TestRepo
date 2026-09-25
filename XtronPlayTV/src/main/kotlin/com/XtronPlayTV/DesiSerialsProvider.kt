@@ -206,15 +206,15 @@ class DesiSerialsProvider : MainAPI() {
             this.posterHeaders = mapOf("referer" to "$mainUrl/")
         }
     }
-
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-
-        suspend fun handleIframe(url: String, referer: String, targetPlayerName: String) {
+        suspend fun handleIframe(href: String, referer: String) {
+            val url = if (href.startsWith("//")) "https:$href" else href
+            
             if (url.contains("desi-snation") || url.contains("tvarticles") || url.contains("desi-serials") || url.contains("bolly")) {
                 val secureIframeUrl = if (!url.startsWith(XtronPlayTVPlugin.proxy)) {
                     "${XtronPlayTVPlugin.proxy}/?url=$url"
@@ -225,57 +225,63 @@ class DesiSerialsProvider : MainAPI() {
                 val vidText = vidResponse.text
                 val vidDoc = vidResponse.document
                 val nestedIframes = vidDoc.select("iframe[src]")
+                val nestedMatches = nestedIframes.map { it.attr("src") }
                 
-                if (vidText.contains("flow.tvlogy") || vidText.contains("tvlogy.to") || nestedIframes.any { it.attr("src").contains("tvlogy") }) {
-                    val finalNestedUrl = nestedIframes.firstOrNull { it.attr("src").contains("tvlogy") }?.attr("src") 
-                        ?: Regex("""src"\s*:\s*"([^"]+)""").find(vidText)?.groupValues?.getOrNull(1) ?: url    
-                    val absoluteNestedUrl = if (finalNestedUrl.startsWith("//")) "https:$finalNestedUrl" else finalNestedUrl
-                    Tvlogyflow(targetPlayerName).getUrl(absoluteNestedUrl, url, subtitleCallback, callback)
-                    return
-                }
-
-                // Dedicated execution block routing unpacked SpeedWatch streams directly to link callbacks
-                if (targetPlayerName == "SpeedWatch" || url.contains("speedwatch")) {
-                    try {
-                        val base64Match = Regex("""JuicyCodes\.Run\s*\(\s*["']([^"']+)["']\s*\)""").find(vidText)
-                        if (base64Match != null) {
-                            val base64Code = base64Match.groupValues[1]
-                            val decodedStr = String(android.util.Base64.decode(base64Code, android.util.Base64.DEFAULT))
-                            val unpacked = getAndUnpack(decodedStr)
-                            val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
-                            val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
+                nestedMatches.forEach { nestedSrc ->
+                    val fullNestedUrl = if (nestedSrc.startsWith("//")) "https:$nestedSrc" else nestedSrc
+                    
+                    if (fullNestedUrl.contains("flow.tvlogy") || fullNestedUrl.contains("tvlogy.to")) {
+                        Tvlogyflow(this.name).getUrl(fullNestedUrl, url, subtitleCallback, callback)
+                    } else if (fullNestedUrl.contains("speedwatch")) {
+                        try {
+                            val proxiedSpeedwatchUrl = "${XtronPlayTVPlugin.proxy}/?url=$fullNestedUrl"
+                            val playerHtml = app.get(proxiedSpeedwatchUrl, referer = url).text
+                            val base64Match = Regex("""JuicyCodes\.Run\s*\(\s*["']([^"']+)["']\s*\)""").find(playerHtml)
                             
-                            m3u8Links.forEach { source ->
-                                callback.invoke(
-                                    newExtractorLink(targetPlayerName, targetPlayerName, source, type = ExtractorLinkType.M3U8) {
-                                        this.referer = url
-                                        this.quality = Qualities.Unknown.value
-                                    }
-                                )
+                            if (base64Match != null) {
+                                // Extract the string value from group 1 instead of the entire list reference
+                                val base64Code = base64Match.groupValues[1]
+                                val decodedStr = String(android.util.Base64.decode(base64Code, android.util.Base64.DEFAULT))
+                                val unpacked = getAndUnpack(decodedStr)
+                                val m3u8Regex = Regex("""(https?://[^"']+\.m3u8[^"']*)""")
+                                // Select index 1 of groupValues to return String instead of a List wrapper
+                                val m3u8Links = m3u8Regex.findAll(unpacked).map { it.groupValues[1] }.distinct().toList()
+                                
+                                m3u8Links.forEach { source ->
+                                    callback.invoke(
+                                        newExtractorLink("SpeedWatch", "SpeedWatch", source, type = ExtractorLinkType.M3U8) {
+                                            this.referer = fullNestedUrl
+                                            this.quality = Qualities.Unknown.value
+                                        }
+                                    )
+                                }
+                            } else {
+                                loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                             }
-                            return
+                        } catch (_: Exception) {
+                            loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
                         }
-                    } catch (_: Exception) {}
+                    } else {
+                        // Pass the proper referer context to the nested extractor loader
+                        loadExtractor(fullNestedUrl, url, subtitleCallback, callback)
+                    }
                 }
-
-                // Structured fallback expression matching universal direct video streams
+                
                 val videoRegex = Regex("""(https?://[^"']+\.(?:m3u8|mp4)[^"']*)""")
+                // Extract group index 1 to collect direct string URLs and avoid type mismatches
                 val sources = videoRegex.findAll(vidText).map { it.groupValues[1] }.distinct().toList()
                 
-                if (sources.isNotEmpty()) {
-                    sources.forEach { source ->
-                        val isM3u8 = source.contains(".m3u8")
-                        callback.invoke(
-                            newExtractorLink(targetPlayerName, targetPlayerName, source, type = if (isM3u8) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO) {
-                                this.referer = url
-                                this.quality = if (isM3u8) Qualities.Unknown.value else Qualities.P720.value
-                            }
-                        )
-                    }
-                } else {
-                    loadExtractor(url, referer, subtitleCallback, callback)
+                sources.forEach { source ->
+                    val isM3u8 = source.contains(".m3u8")
+                    callback.invoke(
+                        newExtractorLink(this.name, this.name, source, type = if (isM3u8) ExtractorLinkType.M3U8 else ExtractorLinkType.VIDEO) {
+                            this.referer = url
+                            this.quality = if (isM3u8) Qualities.Unknown.value else Qualities.P720.value
+                        }
+                    )
                 }
             } else {
+                // Fixed missing referer parameter to prevent compilation failure
                 loadExtractor(url, referer, subtitleCallback, callback)
             }
         }
@@ -287,34 +293,20 @@ class DesiSerialsProvider : MainAPI() {
                 data
             }
             val doc = app.get(secureDataUrl).document
+            val iframes = doc.select("iframe[src]").map { it.attr("src") }
+            val aLinks = doc.select("div.entry-content p a[href]").map { it.attr("href") }.filter { href ->
+                href.contains("desi-snation") || href.contains("tvarticles") || href.contains("desi-serials") || href.contains("bolly") || href.contains("dai.ly") || href.contains("dailymotion.com") || href.contains("vkprime") || href.contains("speedwatch")
+            }
+            val allLinks = (iframes + aLinks).distinct()
             
-            // DYNAMIC PARSING: Maps label nodes sequentially to bypass hidden layout drops
-            val paragraphs = doc.select("div.entry-content p")
-            var activePlayerName = "Tvlogy"
-
-            paragraphs.forEach { p ->
-                val text = p.text().trim()
-                if (text.contains("Online Links", ignoreCase = true)) {
-                    activePlayerName = when {
-                        text.contains("Flash", ignoreCase = true) -> "Flash Player"
-                        text.contains("Dailymotion", ignoreCase = true) -> "Dailymotion"
-                        text.contains("NetFlix", ignoreCase = true) -> "NetFlix"
-                        text.contains("SpeedWatch", ignoreCase = true) -> "SpeedWatch"
-                        text.contains("VkPrime", ignoreCase = true) -> "VkPrime"
-                        else -> "Tvlogy"
-                    }
-                }
-                
-                val aLink = p.selectFirst("a[href]")?.attr("href")
-                if (!aLink.isNullOrBlank() && (aLink.contains("tvarticles") || aLink.contains("desi") || aLink.contains("speedwatch") || aLink.contains("vkprime"))) {
-                    handleIframe(aLink, data, activePlayerName)
-                }
+            allLinks.forEach {
+                handleIframe(it, data)
             }
         } else if (data.startsWith("[")) {
             try {
                 val links = parseJson<List<String>>(data)
                 links.amap { link ->
-                    handleIframe(link, "$mainUrl/", "Tvlogy")
+                    handleIframe(link, "$mainUrl/")
                 }
             } catch (_: Exception) {}
         }
