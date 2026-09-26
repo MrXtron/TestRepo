@@ -42,6 +42,27 @@
         "fileHash": "sha256-0962a641642ec6581c8d7f9c7cebf13da161dcee49c58b96501062ea3c886782"
     },
     {
+        "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/XtronPlay TV.cs3",
+        "status": 1,
+        "version": 21,
+        "name": "XtronPlay TV",
+        "internalName": "XtronPlay TV",
+        "authors": [
+            "Xtron"
+        ],
+        "description": "Ultimate hub for Indian Daily Soaps & Dramas from BollyZone and DesiSerials",
+        "fileSize": 62627,
+        "repositoryUrl": "https://github.com/MrXtron/TestRepo",
+        "language": "hi",
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/XtronPlayTV.png",
+        "apiVersion": 1,
+        "fileHash": "sha256-d1183a220839e3ecb60282884454f6aee5653ae135d96cc9b691e08e7579da65"
+    },
+    {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/XtronPlayT.cs3",
         "status": 1,
         "version": 13,
