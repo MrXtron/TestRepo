@@ -132,7 +132,7 @@ class BollyzoneProvider : DesiSerialsProvider() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         val encodedQuery = query.replace(" ", "+").lowercase()
-        val targetUrl = "$mainUrl&s=$encodedQuery"
+        val targetUrl = "$mainUrl/?s=$encodedQuery"
         val doc = getProxyDocument(targetUrl)
 
         return doc.select("ul.MovieList li.TPostMv")
