@@ -3,6 +3,7 @@ package com.hdmovie2
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import com.lagradost.cloudstream3.ActorRole
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import java.text.Normalizer
@@ -117,10 +118,7 @@ class Hdmovie2 : MainAPI() {
         
         val tagsCollection = parsedDocument.select("div.sgeneros a").map { it.text() }
         val actorsCollection = parsedDocument.select("section#cast div.persons article.person").map { 
-            ActorData(
-                Actor(name = it.select("div.name").text(), image = null),
-                role = ActorRole.Character(it.select("div.caracter").text())
-            )
+            ActorData(Actor(name = it.select("div.name").text(), image = null),role = ActorRole.Character(it.select("div.caracter").text()))
         }
 
         val dynamicRecommendations = parsedDocument.select(".grid article.card").mapNotNull { element ->
