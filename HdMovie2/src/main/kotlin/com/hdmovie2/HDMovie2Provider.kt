@@ -146,7 +146,6 @@ class Hdmovie2 : MainAPI() {
                 }
             }
         }
-
         // FIXED: Corrected path parameter to scrape dynamic tracking engines flawlessly
         try {
             val scriptUrl = "https://route7ind.com/player.js?v=124"
@@ -209,7 +208,7 @@ class Hdmovie2 : MainAPI() {
                 name = parsedTitle,
                 url = url,
                 type = TvType.Movie,
-                dataUrl = AppUtils.toJson(parsedLinksList)
+                dataUrl = parsedLinksList.toString()
             ) {
                 this.posterUrl = generatedPoster
                 this.backgroundPosterUrl = bannerBackground
