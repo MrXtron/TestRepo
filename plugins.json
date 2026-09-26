@@ -1,5 +1,26 @@
 [
     {
+        "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/HdMovie2.cs3",
+        "status": 1,
+        "version": 13,
+        "name": "HdMovie2",
+        "internalName": "HdMovie2",
+        "authors": [
+            "Xtron"
+        ],
+        "description": "Hdmovie2",
+        "fileSize": 32398,
+        "repositoryUrl": "https://github.com/MrXtron/TestRepo",
+        "language": "hi",
+        "tvTypes": [
+            "TvSeries",
+            "Movie"
+        ],
+        "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/HDMovie2.png",
+        "apiVersion": 1,
+        "fileHash": "sha256-0b42aa6b5630277b01d1739bdd212a0b360bfd35815b6a5d83b74cf7ee050866"
+    },
+    {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/MovieBox (Mob).cs3",
         "status": 1,
         "version": 25,
