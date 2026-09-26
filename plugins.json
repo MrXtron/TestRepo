@@ -2,14 +2,14 @@
     {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/HdMovie2.cs3",
         "status": 1,
-        "version": 13,
+        "version": 14,
         "name": "HdMovie2",
         "internalName": "HdMovie2",
         "authors": [
             "Xtron"
         ],
         "description": "Hdmovie2",
-        "fileSize": 32398,
+        "fileSize": 34119,
         "repositoryUrl": "https://github.com/MrXtron/TestRepo",
         "language": "hi",
         "tvTypes": [
@@ -18,7 +18,7 @@
         ],
         "iconUrl": "https://raw.githubusercontent.com/MrXtron/CloudStream-Extension/refs/heads/main/Files/Icons/HDMovie2.png",
         "apiVersion": 1,
-        "fileHash": "sha256-0b42aa6b5630277b01d1739bdd212a0b360bfd35815b6a5d83b74cf7ee050866"
+        "fileHash": "sha256-bf8085c54ea4a2a6c1e9a6317d3bd5bb4e3dc5d83e25e0be419d8c1e63b3990d"
     },
     {
         "url": "https://raw.githubusercontent.com/MrXtron/TestRepo/builds/MovieBox (Mob).cs3",
