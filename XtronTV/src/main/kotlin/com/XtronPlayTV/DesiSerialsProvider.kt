@@ -220,7 +220,7 @@ open class DesiSerialsProvider : MainAPI() {
                 try {
                     val links = parseJson<List<String>>(data)
                     links.amap { link ->
-                        handleIframe(link, "$mainUrl/", subtitleCallback, callback)
+                        handleIframe(link, "$mainUrl/", "", subtitleCallback, callback)
                     }
                 } catch (e: Exception) {
                     android.util.Log.d("DesiSerials", "loadLinks JSON parse error: " + e.message)
