@@ -118,9 +118,8 @@ class Hdmovie2 : MainAPI() {
         val tagsCollection = parsedDocument.select("div.sgeneros a").map { it.text() }
         val actorsCollection = parsedDocument.select("section#cast div.persons article.person").map { 
             ActorData(
-                Actor(it.select("div.name").text(), null),
-                com.lagradost.cloudstream3.ActorRole.Character,
-                it.select("div.caracter").text()
+                actor = Actor(it.select("div.name").text(), null),
+                character = it.select("div.caracter").text()
             )
         }
         val dynamicRecommendations = parsedDocument.select(".grid article.card").mapNotNull { element ->
