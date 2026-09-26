@@ -127,12 +127,23 @@ class Hdmovie2 : MainAPI() {
 
         val isSeriesContainer = url.contains("/tvshows/") || parsedDocument.selectFirst("div.les-title") != null
 
-        // Collecting explicit layout streams from the template options
+        // Collect all target data URLs from stream links layout
         val parsedLinksList = mutableListOf<String>()
-        parsedDocument.select("li.dooplay_player_option a[data-source]").forEach { option ->
+        
+        // Fix: Extract the primary streaming source directly from the main movie-player container first
+        parsedDocument.selectFirst("#movie-player, div.play")?.attr("data-first-source")?.let { mainSource ->
+            if (mainSource.isNotBlank() && !mainSource.contains("youtube.com")) {
+                parsedLinksList.add(fixUrl(mainSource))
+            }
+        }
+
+        // Loop through the alternative player options anchors
+        parsedDocument.select(".options ul li a, li.dooplay_player_option a").forEach { option ->
             val sourceUrl = option.attr("data-source")
             if (sourceUrl.isNotBlank() && !sourceUrl.contains("youtube.com")) {
-                parsedLinksList.add(sourceUrl)
+                if (sourceUrl.startsWith("http") || sourceUrl.startsWith("//")) {
+                    parsedLinksList.add(fixUrl(sourceUrl))
+                }
             }
         }
 
@@ -143,11 +154,11 @@ class Hdmovie2 : MainAPI() {
             val match = Regex("const\\s+AwsIndStreamDomain\\s*=\\s*['\"]([^'\"]+)['\"]").find(jsContent)
             val extractedDomain = match?.groupValues?.getOrNull(1)?.trim()
             
-            val imdbIdElement = parsedDocument.selectFirst("div.custom_fields:contains(IMDb ID) span.valor")?.text()
-            
+            val imdbIdElement = parsedDocument.selectFirst(".custom_fields:contains(IMDb ID) .valor, .custom_fields:contains(IMDb ID) span.valor")?.text()?.trim()
             if (!extractedDomain.isNullOrBlank() && !imdbIdElement.isNullOrBlank()) {
-                // Prepends the live extracted high-speed stream array to the response payload list
+                val processedImdb = imdbIdElement.replace("f", "")
                 parsedLinksList.add(0, "$extractedDomain/play/$imdbIdElement")
+                parsedLinksList.add(0, "$extractedDomain/play/$processedImdb")
             }
         } catch (e: Throwable) {
             // Safe fallback logging block execution execution framework
@@ -198,7 +209,7 @@ class Hdmovie2 : MainAPI() {
                 name = parsedTitle,
                 url = url,
                 type = TvType.Movie,
-                dataUrl = parsedLinksList.firstOrNull() ?: url
+                dataUrl = AppUtils.toJson(parsedLinksList)
             ) {
                 this.posterUrl = generatedPoster
                 this.backgroundPosterUrl = bannerBackground
@@ -218,12 +229,24 @@ class Hdmovie2 : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // Safe check to verify data payload is not empty
         if (data.isBlank()) return false
 
         val baseDomain = if (this.directUrl.isBlank()) mainUrl else this.directUrl
 
-        // Directly route the raw embedded links gathered from the modern layout elements
+        if (data.startsWith("[")) {
+            try {
+                // Fallback custom text array splitting strategy to avoid Jackson strict types exceptions
+                val cleanData = data.replace("[", "").replace("]", "").replace("\"", "").trim()
+                val urlsList = cleanData.split(",").map { it.trim() }
+                urlsList.forEach { singleUrl ->
+                    if (singleUrl.startsWith("http")) {
+                        loadExtractor(singleUrl, "$baseDomain/", subtitleCallback, callback)
+                    }
+                }
+                return true
+            } catch (_: Throwable) {}
+        }
+
         if (data.startsWith("http")) {
             if (!data.contains("youtube.com", ignoreCase = true)) {
                 loadExtractor(data, "$baseDomain/", subtitleCallback, callback)
@@ -334,7 +357,7 @@ class Hdmovie2 : MainAPI() {
             val requestUrl = request.url.toString()
             
             when {
-                requestUrl.contains("hdm2.biz") || requestUrl.contains("hdm2.xyz") -> {
+                requestUrl.contains("hdm2.biz") || requestUrl.contains("hdm2.xyz") || requestUrl.contains("hdm2.ink") -> {
                     val modifiedRequest = request.newBuilder()
                         .header("Accept", "*/*")
                         .header("Origin", mainUrl)
