@@ -162,20 +162,20 @@ open class DesiSerialsProvider : MainAPI() {
         val securePoster = proxyImage(poster)
 
         val episodes = mutableListOf<Episode>()
-        // 1. Extract the maximum page number from pagination links
-        val lastPageNumber = firstDoc.select("div.pagination a.page-numbers")
-            .mapNotNull { it.text().toIntOrNull() }
+        // 1. Extract the maximum page number using the correct 'doc' variable reference
+        val lastPageNumber = doc.select("div.pagination a.page-numbers")
+            .mapNotNull { element -> element.text().toIntOrNull() }
             .maxOrNull() 
-            ?: firstDoc.select("ul.page-numbers a.page-numbers, .next.page-numbers")
-                .mapNotNull { it.text().toIntOrNull() }
+            ?: doc.select("ul.page-numbers a.page-numbers, .next.page-numbers")
+                .mapNotNull { element -> element.text().toIntOrNull() }
                 .maxOrNull() 
             ?: 1
 
         // 2. Iterate through all discovered subpages sequentially to extract episodes
         for (page in 1..lastPageNumber) {
-            val doc = if (page == 1) firstDoc else getProxyDocument("${url.trimEnd('/')}/page/$page/")
+            val pageDoc = if (page == 1) doc else getProxyDocument("${url.trimEnd('/')}/page/$page/")
             
-            doc.select("article.post, article.type-post, div.post-item, .post-grid").forEach { element ->
+            pageDoc.select("article.post, article.type-post, div.post-item, .post-grid").forEach { element ->
                 val a = element.selectFirst("h2.entry-title a, h3.thumb-info-inner a, h3.porto-post-title a")
                 if (a != null) {
                     val epHref = fixUrl(a.attr("href"))
